@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"net/url"
 
-	scraper "git.catnip.ee/miisu/youtube_scraper"
 	"github.com/ayes-web/rjson"
+	scraper "github.com/ayes-web/youtube_scraper"
 )
 
 type SearchEntryType = int

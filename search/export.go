@@ -1,6 +1,6 @@
 package search
 
-import scraper "git.catnip.ee/miisu/youtube_scraper"
+import scraper "github.com/ayes-web/youtube_scraper"
 
 type SearchScraperExport struct {
 	Url             string

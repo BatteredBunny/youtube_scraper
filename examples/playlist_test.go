@@ -3,7 +3,7 @@ package examples
 import (
 	"testing"
 
-	scraper "git.catnip.ee/miisu/youtube_scraper"
+	scraper "github.com/ayes-web/youtube_scraper"
 )
 
 func TestPlaylist(t *testing.T) {

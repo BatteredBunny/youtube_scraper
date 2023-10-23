@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	scraper "git.catnip.ee/miisu/youtube_scraper"
 	"github.com/ayes-web/rjson"
+	scraper "github.com/ayes-web/youtube_scraper"
 	"github.com/dustin/go-humanize"
 )
 

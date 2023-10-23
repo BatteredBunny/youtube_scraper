@@ -1,4 +1,4 @@
-module git.catnip.ee/miisu/youtube_scraper
+module github.com/ayes-web/youtube_scraper
 
 go 1.20
 

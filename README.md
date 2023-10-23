@@ -21,7 +21,7 @@ package main
 
 import (
 	"encoding/json"
-	"git.catnip.ee/miisu/youtube_scraper"
+	"github.com/ayes-web/youtube_scraper"
 	"log"
 )
 

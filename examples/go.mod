@@ -2,9 +2,9 @@ module examples
 
 go 1.20
 
-replace git.catnip.ee/miisu/youtube_scraper => ../
+replace github.com/ayes-web/youtube_scraper => ../
 
-require git.catnip.ee/miisu/youtube_scraper v0.0.0-20230715112304-1e3143fec697
+require github.com/ayes-web/youtube_scraper v0.0.0-20230715112304-1e3143fec697
 
 require (
 	github.com/PuerkitoBio/goquery v1.8.1 // indirect

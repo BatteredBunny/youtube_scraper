@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	scraper "git.catnip.ee/miisu/youtube_scraper"
+	scraper "github.com/ayes-web/youtube_scraper"
 )
 
 func TestHomeVideosScraper(t *testing.T) {
