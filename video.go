@@ -26,8 +26,10 @@ type FullVideo struct {
 	VideoID       string `json:"VideoID"`
 	Title         string `json:"Title"`
 	Description   string `json:"Description"`
-	Views         string `json:"Views"`
-	Date          string `json:"Date"`
+	Views         string `json:"Views"` // if its live this will display number of viewers instead
+	IsLive        bool   `json:"IsLive"`
+	WasLive       bool   `json:"WasLive"` // if this video was live
+	Date          string `json:"Date"`    // Date will be in this format: "Jul 12, 2023"
 	Likes         string `json:"Likes"`
 	CommentsCount string `json:"CommentsCount"`
 	Category      string `json:"Category"`
@@ -40,15 +42,16 @@ type FullVideo struct {
 
 type VideoInitialOutput struct {
 	Title              string `rjson:"playerOverlays.playerOverlayRenderer.videoDetails.playerOverlayVideoDetailsRenderer.title.simpleText"`
-	Description        string `rjson:"engagementPanels[1].engagementPanelSectionListRenderer.content.structuredDescriptionContentRenderer.items[1].expandableVideoDescriptionBodyRenderer.attributedDescriptionBodyText.content"`
+	Description        string `rjson:"contents.twoColumnWatchNextResults.results.results.contents[1].videoSecondaryInfoRenderer.attributedDescription.content"`
 	Views              string `rjson:"playerOverlays.playerOverlayRenderer.videoDetails.playerOverlayVideoDetailsRenderer.subtitle.runs[2].text"`
-	Date               string `rjson:"engagementPanels[1].engagementPanelSectionListRenderer.content.structuredDescriptionContentRenderer.items[0].videoDescriptionHeaderRenderer.publishDate.simpleText"`
+	IsLive             bool   `rjson:"contents.twoColumnWatchNextResults.results.results.contents[0].videoPrimaryInfoRenderer.viewCount.videoViewCountRenderer.isLive"`
+	Date               string `rjson:"contents.twoColumnWatchNextResults.results.results.contents[0].videoPrimaryInfoRenderer.dateText.simpleText"`
 	Username           string `rjson:"playerOverlays.playerOverlayRenderer.videoDetails.playerOverlayVideoDetailsRenderer.subtitle.runs[0].text"`
-	ChannelID          string `rjson:"engagementPanels[1].engagementPanelSectionListRenderer.content.structuredDescriptionContentRenderer.items[0].videoDescriptionHeaderRenderer.channelNavigationEndpoint.browseEndpoint.browseId"`
-	RawNewChannelID    string `rjson:"engagementPanels[1].engagementPanelSectionListRenderer.content.structuredDescriptionContentRenderer.items[0].videoDescriptionHeaderRenderer.channelNavigationEndpoint.browseEndpoint.canonicalBaseUrl"`
-	Likes              string `rjson:"engagementPanels[1].engagementPanelSectionListRenderer.content.structuredDescriptionContentRenderer.items[0].videoDescriptionHeaderRenderer.factoid[0].factoidRenderer.value.simpleText"`
-	ChannelSubscribers string `rjson:"engagementPanels[1].engagementPanelSectionListRenderer.content.structuredDescriptionContentRenderer.items[2].videoDescriptionInfocardsSectionRenderer.sectionSubtitle.simpleText"`
-	CommentsCount      string `rjson:"engagementPanels[2].engagementPanelSectionListRenderer.header.engagementPanelTitleHeaderRenderer.contextualInfo.runs[0].text"`
+	ChannelID          string `rjson:"contents.twoColumnWatchNextResults.results.results.contents[1].videoSecondaryInfoRenderer.owner.videoOwnerRenderer.title.runs[0].navigationEndpoint.browseEndpoint.browseId"`
+	RawNewChannelID    string `rjson:"contents.twoColumnWatchNextResults.results.results.contents[1].videoSecondaryInfoRenderer.owner.videoOwnerRenderer.title.runs[0].navigationEndpoint.browseEndpoint.canonicalBaseUrl"`
+	Likes              string `rjson:"contents.twoColumnWatchNextResults.results.results.contents[0].videoPrimaryInfoRenderer.videoActions.menuRenderer.topLevelButtons[0].segmentedLikeDislikeButtonRenderer.likeButton.toggleButtonRenderer.defaultText.simpleText"`
+	ChannelSubscribers string `rjson:"contents.twoColumnWatchNextResults.results.results.contents[1].videoSecondaryInfoRenderer.owner.videoOwnerRenderer.subscriberCountText.simpleText"`
+	CommentsCount      string `rjson:"contents.twoColumnWatchNextResults.results.results.contents[2].itemSectionRenderer.contents[0].commentsEntryPointHeaderRenderer.commentCount.simpleText"`
 	Category           string `rjson:"contents.twoColumnWatchNextResults.results.results.contents[1].videoSecondaryInfoRenderer.metadataRowContainer.metadataRowContainerRenderer.rows[0].richMetadataRowRenderer.contents[1].richMetadataRenderer.title.runs[0].text"`
 
 	CommentsTopToken    string `rjson:"engagementPanels[2].engagementPanelSectionListRenderer.header.engagementPanelTitleHeaderRenderer.menu.sortFilterSubMenuRenderer.subMenuItems[0].serviceEndpoint.continuationCommand.token"`
@@ -92,19 +95,24 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 		return
 	}
 
+	date, wasLive := strings.CutPrefix(output.Date, "Streamed live on ")
+	date, isLive := strings.CutPrefix(date, "Started streaming on ")
+
 	v.video = FullVideo{
 		VideoID:            id,
 		Title:              output.Title,
 		Description:        output.Description,
-		Views:              output.Views,
-		Date:               output.Date,
+		Views:              strings.TrimSuffix(output.Views, " views"),
+		IsLive:             output.IsLive || isLive,
+		WasLive:            wasLive,
+		Date:               date,
 		Likes:              output.Likes,
 		CommentsCount:      output.CommentsCount,
 		Category:           output.Category,
 		Username:           output.Username,
 		ChannelID:          output.ChannelID,
 		NewChannelID:       strings.TrimPrefix(output.RawNewChannelID, "/"),
-		ChannelSubscribers: output.ChannelSubscribers,
+		ChannelSubscribers: strings.TrimSuffix(output.ChannelSubscribers, " subscribers"),
 	}
 
 	return

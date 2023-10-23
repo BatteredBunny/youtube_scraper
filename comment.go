@@ -16,11 +16,12 @@ type Comment struct {
 	NewChannelID  string
 	CommentID     string
 	Content       string
-	PublishedTime string
+	PublishedTime string // "5 days ago"
 	LikeAmount    string // Empty means 0 likes
 	PinnedBy      string // "Pinned by Username"
 	IsPinned      bool
 	IsHearted     bool
+	WasEdited     bool // if the comment was edited
 }
 
 type commentContinueOutputComment struct {
@@ -122,11 +123,13 @@ func genericNextCommentsPage(token *string, continueInputJson *[]byte, commentsP
 			continue
 		}
 
+		publishedTime, wasEdited := strings.CutSuffix(comment.PublishedTime, " (edited)")
 		comments = append(comments, Comment{
 			NewChannelID:  comment.NewChannelID,
 			CommentID:     comment.CommentID,
 			Content:       strings.Join(comment.Content, ""),
-			PublishedTime: comment.PublishedTime,
+			PublishedTime: publishedTime,
+			WasEdited:     wasEdited,
 			LikeAmount:    comment.LikeAmount,
 			PinnedBy:      strings.Join(comment.Pinned, ""),
 			IsPinned:      len(comment.Pinned) > 0,
