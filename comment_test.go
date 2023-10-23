@@ -38,7 +38,39 @@ func TestVideoCommentTopScraper(t *testing.T) {
 		}
 
 		for _, comment := range comments {
-			t.Log("id:", comment.CommentID, "content:", comment.Content, "likes:", comment.LikeAmount)
+			t.Log("id:", comment.CommentID, "replies amount:", comment.RepliesAmount)
+		}
+	}
+}
+
+func TestSubcommentSection(t *testing.T) {
+	scraper, err := NewVideoScraper("FdbvrqC6lOY")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var comments []Comment
+	comments, err = scraper.NextTopCommentsPage()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, comment := range comments {
+		if comment.HasSubComments() {
+			var subcomments []Comment
+			for {
+				subcomments, err = comment.NextSubCommentPage()
+				if err != nil {
+					t.Fatal(err)
+				} else if len(subcomments) == 0 {
+					break
+				}
+
+				for _, subcomment := range subcomments {
+					t.Log(subcomment.Content)
+				}
+			}
+			break
 		}
 	}
 }
