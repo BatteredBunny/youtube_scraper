@@ -21,10 +21,31 @@ type HomeVideosScraper struct {
 	continueInputJson []byte
 }
 
+func HomeVideosScraperFromToken(token string, visitorData string) (h HomeVideosScraper, err error) {
+	h.url = "https://www.youtube.com/?hl=en"
+	h.continueInput = continueInput{
+		BrowseId:            "FEwhat_to_watch",
+		InlineSettingStatus: "INLINE_SETTING_STATUS_ON",
+		Continuation:        token,
+	}.FillGenericInfo()
+
+	h.continueInput.Context.Client.VisitorData = visitorData
+	h.continueInputJson, err = h.continueInput.Construct()
+	if err != nil {
+		return
+	}
+
+	return
+}
+
 func NewHomeVideosScraper() (h HomeVideosScraper) {
 	h.url = "https://www.youtube.com/?hl=en"
 
 	return
+}
+
+func (h *HomeVideosScraper) Export() (ContinueToken string, VisitorData string) {
+	return h.continueInput.Continuation, h.continueInput.Context.Client.VisitorData
 }
 
 // home has a modified version of videoRenderer with few additional lines of info, maybe best to merge them fully?
@@ -87,6 +108,7 @@ func (video homeInitialOutputVideo) ToVideo() (v Video, err error) {
 		AuthorIsVerified:       authorIsVerified,
 		AuthorIsVerifiedArtist: authorIsVerifiedArtist,
 	}
+
 	return
 }
 
@@ -182,6 +204,7 @@ func (h *HomeVideosScraper) NextPage() (videos []Video, err error) {
 		if err != nil {
 			return
 		}
+
 		h.continueInputJson = []byte{}
 
 		var body []byte
