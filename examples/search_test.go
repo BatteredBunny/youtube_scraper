@@ -5,7 +5,6 @@ import (
 	"log"
 	"testing"
 
-	scraper "git.catnip.ee/miisu/youtube_scraper"
 	search "git.catnip.ee/miisu/youtube_scraper/search"
 )
 
@@ -29,7 +28,6 @@ func TestSearch(t *testing.T) {
 }
 
 func TestSearchFilters(t *testing.T) {
-	scraper.Debug = true
 	searchScraper, err := search.NewSearchScraper("test", "")
 	if err != nil {
 		t.Fatal(err)
