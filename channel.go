@@ -158,12 +158,13 @@ type channelInitialAccount struct {
 
 // videoRenderer json type
 type videoRenderer struct {
-	VideoID string `rjson:"videoId"`
-	Title   string `rjson:"title.runs[0].text"`
-	Length  string `rjson:"lengthText.simpleText"`
-	Views   string `rjson:"viewCountText.simpleText"`
-	Viewers string `rjson:"viewCountText.runs[0].text"`
-	Date    string `rjson:"publishedTimeText.simpleText"`
+	VideoID    string         `rjson:"videoId"`
+	Title      string         `rjson:"title.runs[0].text"`
+	Length     string         `rjson:"lengthText.simpleText"`
+	Views      string         `rjson:"viewCountText.simpleText"`
+	Viewers    string         `rjson:"viewCountText.runs[0].text"`
+	Date       string         `rjson:"publishedTimeText.simpleText"`
+	Thumbnails []YoutubeImage `rjson:"thumbnail.thumbnails"`
 }
 
 func (video videoRenderer) ToVideo(channel *Channel) (v Video, err error) {
@@ -198,7 +199,9 @@ func (video videoRenderer) ToVideo(channel *Channel) (v Video, err error) {
 		IsLive:                 len(video.Viewers) > 0,
 		AuthorIsVerified:       channel.IsVerified,
 		AuthorIsVerifiedArtist: channel.IsVerifiedArtist,
+		Thumbnails:             video.Thumbnails,
 	}
+
 	return
 }
 
