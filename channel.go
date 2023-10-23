@@ -3,6 +3,7 @@ package scraper
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"github.com/ayes-web/rjson"
 	"io"
 	"log"
@@ -157,9 +158,12 @@ type channelVideosInitialOutput struct {
 	VideosContinuationToken string                `rjson:"contents.twoColumnBrowseResultsRenderer.tabs[1].tabRenderer.content.richGridRenderer.contents[-].continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
 }
 type channelStreamsInitialOutput struct {
-	Channel                  channelInitialAccount `rjson:"."`
-	Videos                   []channelInitialVideo `rjson:"contents.twoColumnBrowseResultsRenderer.tabs[3].tabRenderer.content.richGridRenderer.contents"`
-	StreamsContinuationToken string                `rjson:"contents.twoColumnBrowseResultsRenderer.tabs[3].tabRenderer.content.richGridRenderer.contents[-].continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
+	Channel channelInitialAccount `rjson:"."`
+	Tabs    []struct {
+		Title  string                `rjson:"tabRenderer.title"`
+		Token  string                `rjson:"tabRenderer.content.richGridRenderer.contents[-].continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
+		Videos []channelInitialVideo `rjson:"tabRenderer.content.richGridRenderer.contents"`
+	} `rjson:"contents.twoColumnBrowseResultsRenderer.tabs"`
 }
 
 type channelVideosContinueOutput struct {
@@ -301,7 +305,7 @@ func (c *ChannelScraper) NextVideosPage() (videos []Video, err error) {
 // NextStreamsPage scrapes pages of the `/streams` endpoint on channel page
 func (c *ChannelScraper) NextStreamsPage() (videos []Video, err error) {
 	if !c.streamsInitialComplete {
-		return genericChannelInitial(&c.streamsInitialComplete, c.baseChannelUrl+"/streams?hl=en", &c.channel, &c.streamsContinueInputJson, func(rawJson []byte) (rawChannel channelInitialAccount, rawVideos []channelInitialVideo, rawToken string, err error) {
+		videos, err = genericChannelInitial(&c.streamsInitialComplete, c.baseChannelUrl+"/streams?hl=en", &c.channel, &c.streamsContinueInputJson, func(rawJson []byte) (rawChannel channelInitialAccount, rawVideos []channelInitialVideo, rawToken string, err error) {
 			debugFileOutput(rawJson, "channel_streams_initial.json")
 
 			var output channelStreamsInitialOutput
@@ -316,27 +320,56 @@ func (c *ChannelScraper) NextStreamsPage() (videos []Video, err error) {
 			}
 
 			rawChannel = output.Channel
-			rawVideos = output.Videos
-			rawToken = output.StreamsContinuationToken
+
+			for _, tab := range output.Tabs {
+				if tab.Title == "Live" {
+					rawVideos = tab.Videos
+					rawToken = tab.Token
+				}
+			}
 
 			return
 		})
-	} else {
-		return genericChannelPage(&c.channel, &c.streamsContinueInputJson, func(rawJson []byte) (rawToken string, rawVideos []channelInitialVideo, err error) {
-			debugFileOutput(rawJson, "channel_streams.json")
+		if err != nil {
+			return
+		}
 
-			var output channelStreamsContinueOutput
-			if err = rjson.Unmarshal(rawJson, &output); err != nil {
-				if errors.Unwrap(err) == rjson.ErrCantFindField {
-					err = nil
+		// fix for pagination api sometimes not working
+		if len(videos) == 0 {
+			return c.NextStreamsPage()
+		} else {
+			return
+		}
+	} else {
+		// fix for pagination api sometimes not working
+		for i := 0; i < 3; i++ {
+			videos, err = genericChannelPage(&c.channel, &c.streamsContinueInputJson, func(rawJson []byte) (rawToken string, rawVideos []channelInitialVideo, err error) {
+				debugFileOutput(rawJson, "channel_streams.json")
+
+				var output channelStreamsContinueOutput
+				if err = rjson.Unmarshal(rawJson, &output); err != nil {
+					if errors.Unwrap(err) == rjson.ErrCantFindField {
+						err = nil
+					}
+					return
 				}
+
+				fmt.Println(rawToken)
+				rawToken = output.ContinueToken
+				rawVideos = output.Videos
+
+				return
+			})
+
+			if err != nil {
 				return
 			}
 
-			rawToken = output.ContinueToken
-			rawVideos = output.Videos
+			if len(videos) > 0 {
+				break
+			}
+		}
 
-			return
-		})
+		return
 	}
 }
