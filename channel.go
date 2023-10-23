@@ -1,9 +1,11 @@
-package youtube_scraper
+package scraper
 
 import (
 	"bytes"
-	"encoding/json"
+	"errors"
+	"github.com/ayes-web/rjson"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -70,11 +72,8 @@ type Video struct {
 }
 
 type ChannelVideosScraper struct {
-	url string
-
+	url     string
 	channel Channel
-	// ChannelID    string
-	// NewChannelID string // @username
 
 	InitialComplete   bool
 	ContinueInputJson []byte
@@ -106,96 +105,114 @@ func (c *ChannelVideosScraper) GetChannelInfo() (available bool, channel Channel
 	return
 }
 
-func constructContinue(token string) (ContinueInputJson []byte, err error) {
-	continueInput := continueInput{}
-	continueInput.Context.Client.Hl = "en"
-	continueInput.Context.Client.ClientName = "WEB"
-	continueInput.Context.Client.ClientVersion = "2.20230706.00.00"
-	continueInput.Continuation = token
+type ChannelInitialOutput struct {
+	Subscribers     string `rjson:"header.c4TabbedHeaderRenderer.subscriberCountText.simpleText"`
+	ChannelID       string `rjson:"metadata.channelMetadataRenderer.externalId"`
+	NewChannelID    string `rjson:"header.c4TabbedHeaderRenderer.channelHandleText.runs[0].text"`
+	Username        string `rjson:"metadata.channelMetadataRenderer.title"`
+	Description     string `rjson:"metadata.channelMetadataRenderer.description"`
+	RawVideosAmount string `rjson:"header.c4TabbedHeaderRenderer.videosCountText.runs[0].text"`
 
-	ContinueInputJson, err = json.Marshal(continueInput)
-	return
+	Badges []string `rjson:"header.c4TabbedHeaderRenderer.badges[].metadataBadgeRenderer.tooltip"`
+
+	Videos []struct {
+		VideoID string `rjson:"richItemRenderer.content.videoRenderer.videoId"`
+		Title   string `rjson:"richItemRenderer.content.videoRenderer.title.runs[0].text"`
+		Length  string `rjson:"richItemRenderer.content.videoRenderer.lengthText.simpleText"`
+		Views   string `rjson:"richItemRenderer.content.videoRenderer.viewCountText.simpleText"`
+		Date    string `rjson:"richItemRenderer.content.videoRenderer.publishedTimeText.simpleText"`
+	} `rjson:"contents.twoColumnBrowseResultsRenderer.tabs[1].tabRenderer.content.richGridRenderer.contents"`
+	VideosContinuationToken string `rjson:"contents.twoColumnBrowseResultsRenderer.tabs[1].tabRenderer.content.richGridRenderer.contents[-].continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
 }
 
 func (c *ChannelVideosScraper) runInitial() (videos []Video, err error) {
-	var (
-		a       initialData
-		rawjson string
-	)
-	rawjson, err = ExtractInitialData(c.url)
+	var rawJson string
+	rawJson, err = ExtractInitialData(c.url)
 	if err != nil {
 		return
 	}
 
-	if DEBUG {
-		os.WriteFile("channel_initial.json", []byte(rawjson), 0777)
+	if Debug {
+		os.WriteFile("channel_initial.json", []byte(rawJson), 0777)
 	}
 
-	json.Unmarshal([]byte(rawjson), &a)
+	var output ChannelInitialOutput
+	if err = rjson.Unmarshal([]byte(rawJson), &output); err != nil {
+		if errors.Unwrap(err) == rjson.ErrCantFindField {
+			if Debug {
+				log.Println("WARNING:", err)
+			}
+			err = nil
+		}
+		return
+	}
 
 	// channel
 	c.channel = Channel{
-		Subscribers:  a.Header.C4TabbedHeaderRenderer.SubscriberCountText.SimpleText,
-		ChannelID:    a.Metadata.ChannelMetadataRenderer.ExternalId,
-		NewChannelID: a.Header.C4TabbedHeaderRenderer.ChannelHandleText.Runs[0].Text,
-		Username:     a.Metadata.ChannelMetadataRenderer.Title,
-		Description:  a.Metadata.ChannelMetadataRenderer.Description,
+		Subscribers:  output.Subscribers,
+		ChannelID:    output.ChannelID,
+		NewChannelID: output.NewChannelID,
+		Username:     output.Username,
+		Description:  output.Description,
 	}
 
-	for _, badge := range a.Header.C4TabbedHeaderRenderer.Badges {
-		if badge.MetadataBadgeRenderer.Tooltip == "Verified" {
+	for _, badge := range output.Badges {
+		if badge == "Verified" {
 			c.channel.IsVerified = true
 		}
 	}
 
-	rawVideosAmount := a.Header.C4TabbedHeaderRenderer.VideosCountText.Runs[0].Text
-	if rawVideosAmount == "No videos" {
+	if output.RawVideosAmount == "No videos" {
 		c.channel.VideosAmount = 0
 	} else {
-		c.channel.VideosAmount, err = strconv.Atoi(rawVideosAmount)
+		c.channel.VideosAmount, err = strconv.Atoi(output.RawVideosAmount)
 		if err != nil {
 			return
 		}
 	}
 
-	// videos
-	for _, tab := range a.Contents.TwoColumnBrowseResultsRenderer.Tabs {
-		if strings.HasSuffix(tab.TabRenderer.Endpoint.CommandMetadata.WebCommandMetadata.Url, "/videos") {
-			for _, video := range tab.TabRenderer.Content.RichGridRenderer.Contents {
-				r := video.RichItemRenderer.Content.VideoRenderer
-				if r.VideoId == "" {
-					c.ContinueInputJson, err = constructContinue(video.ContinuationItemRenderer.ContinuationEndpoint.ContinuationCommand.Token)
-					if err != nil {
-						return
-					}
-				} else {
-					videos = append(videos, Video{
-						VideoID:      r.VideoId,
-						Title:        r.Title.Runs[0].Text,
-						Length:       r.LengthText.SimpleText,
-						Views:        r.ViewCountText.SimpleText,
-						Date:         r.PublishedTimeText.SimpleText,
-						ChannelID:    c.channel.ChannelID,
-						NewChannelID: c.channel.NewChannelID,
-					})
-				}
-			}
+	c.ContinueInputJson, err = continueInput{Continuation: output.VideosContinuationToken}.FillGenericInfo().Construct()
+	if err != nil {
+		return
+	}
+
+	for _, video := range output.Videos {
+		if video.VideoID == "" {
+			continue
 		}
+
+		videos = append(videos, Video{
+			VideoID:      video.VideoID,
+			Title:        video.Title,
+			Length:       video.Length,
+			Views:        video.Views,
+			Date:         video.Date,
+			ChannelID:    c.channel.ChannelID,
+			NewChannelID: c.channel.NewChannelID,
+		})
 	}
 
 	c.InitialComplete = true
 	return
 }
 
-func (c *ChannelVideosScraper) NextPage() (videos []Video, err error) {
-	var resp *http.Response
+type channelContinueOutput struct {
+	Videos []struct {
+		VideoID string `rjson:"richItemRenderer.content.videoRenderer.videoId"`
+		Title   string `rjson:"richItemRenderer.content.videoRenderer.title.runs[0].text"`
+		Length  string `rjson:"richItemRenderer.content.videoRenderer.lengthText.simpleText"`
+		Views   string `rjson:"richItemRenderer.content.videoRenderer.viewCountText.simpleText"`
+		Date    string `rjson:"richItemRenderer.content.videoRenderer.publishedTimeText.simpleText"`
+	} `rjson:"onResponseReceivedActions[0].appendContinuationItemsAction.continuationItems"`
 
+	ContinueToken string `rjson:"onResponseReceivedActions[0].appendContinuationItemsAction.continuationItems[-]continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
+}
+
+func (c *ChannelVideosScraper) NextPage() (videos []Video, err error) {
 	if !c.InitialComplete {
-		videos, err = c.runInitial()
-		if err != nil {
-			return
-		}
+		return c.runInitial()
 	} else {
+		var resp *http.Response
 		resp, err = http.Post("https://www.youtube.com/youtubei/v1/browse", "application/json", bytes.NewReader(c.ContinueInputJson))
 		if err != nil {
 			return
@@ -208,31 +225,37 @@ func (c *ChannelVideosScraper) NextPage() (videos []Video, err error) {
 			return
 		}
 
-		var output continueOutput
-		if err = json.Unmarshal(body, &output); err != nil {
+		if Debug {
+			os.WriteFile("channel_videos.json", body, 0777)
+		}
+
+		var output channelContinueOutput
+		if err = rjson.Unmarshal(body, &output); err != nil {
+			if errors.Unwrap(err) == rjson.ErrCantFindField {
+				err = nil
+			}
 			return
 		}
 
-		if len(output.OnResponseReceivedActions) > 0 {
-			for _, rawVideo := range output.OnResponseReceivedActions[0].AppendContinuationItemsAction.ContinuationItems {
-				r := rawVideo.RichItemRenderer.Content.VideoRenderer
-				if r.VideoId == "" {
-					c.ContinueInputJson, err = constructContinue(rawVideo.ContinuationItemRenderer.ContinuationEndpoint.ContinuationCommand.Token)
-					if err != nil {
-						return
-					}
-				} else {
-					videos = append(videos, Video{
-						VideoID:      r.VideoId,
-						Title:        r.Title.Runs[0].Text,
-						Length:       r.LengthText.SimpleText,
-						Views:        r.ViewCountText.SimpleText,
-						Date:         r.PublishedTimeText.SimpleText,
-						ChannelID:    c.channel.ChannelID,
-						NewChannelID: c.channel.NewChannelID,
-					})
-				}
+		c.ContinueInputJson, err = continueInput{Continuation: output.ContinueToken}.FillGenericInfo().Construct()
+		if err != nil {
+			return
+		}
+
+		for _, video := range output.Videos {
+			if video.VideoID == "" {
+				continue
 			}
+
+			videos = append(videos, Video{
+				VideoID:      video.VideoID,
+				Title:        video.Title,
+				Length:       video.Length,
+				Views:        video.Views,
+				Date:         video.Date,
+				ChannelID:    c.channel.ChannelID,
+				NewChannelID: c.channel.NewChannelID,
+			})
 		}
 	}
 

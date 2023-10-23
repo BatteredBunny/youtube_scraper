@@ -1,4 +1,4 @@
-package youtube_scraper
+package scraper
 
 import (
 	"log"
@@ -6,7 +6,7 @@ import (
 )
 
 func TestChannelVideosScraper(t *testing.T) {
-	c := NewChannelVideosScraper("@TomScottGo")
+	scraper := NewChannelVideosScraper("@TomScottGo")
 
 	var (
 		videos         []Video
@@ -14,7 +14,7 @@ func TestChannelVideosScraper(t *testing.T) {
 		printedChannel bool
 	)
 	for {
-		videos, err = c.NextPage()
+		videos, err = scraper.NextPage()
 		if err != nil {
 			t.Fatal(err)
 		} else if len(videos) == 0 {
@@ -22,9 +22,11 @@ func TestChannelVideosScraper(t *testing.T) {
 		}
 
 		if !printedChannel {
-			if available, channel := c.GetChannelInfo(); available {
+			if available, channel := scraper.GetChannelInfo(); available {
 				log.Println(channel)
 			}
+
+			printedChannel = true
 		}
 
 		for _, video := range videos {

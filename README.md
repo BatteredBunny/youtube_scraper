@@ -1,20 +1,20 @@
 # youtube_scraper
 
-Youtube metadata scraper library for golang
+Youtube metadata scraping library for golang
 
 ```go
 package main
 
 import (
-	youtube "git.catnip.ee/miisu/youtube_scraper"
+	"git.catnip.ee/miisu/youtube_scraper"
 	"log"
 )
 
 func main() {
-	c := youtube.NewChannelVideosScraper("@TomScottGo")
+	c := scraper.NewChannelVideosScraper("@TomScottGo")
 
 	var (
-		videos         []youtube.Video
+		videos         []scraper.Video
 		err            error
 		printedChannel bool
 	)

@@ -1,4 +1,4 @@
-package youtube_scraper
+package scraper
 
 import "testing"
 

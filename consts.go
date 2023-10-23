@@ -1,4 +1,4 @@
-package youtube_scraper
+package scraper
 
 // Enables debug json outputs
-var DEBUG = false
+var Debug = true
