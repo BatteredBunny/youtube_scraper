@@ -8,7 +8,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 )
 
@@ -62,18 +61,16 @@ type homeInitialOutput struct {
 }
 
 func (h *HomeVideosScraper) runInitial() (videos []Video, err error) {
-	var rawjson string
-	rawjson, err = extractInitialData(h.url)
+	var rawJson string
+	rawJson, err = extractInitialData(h.url)
 	if err != nil {
 		return
 	}
 
-	if Debug {
-		os.WriteFile("home_initial.json", []byte(rawjson), 0777)
-	}
+	debugFileOutput([]byte(rawJson), "home_initial.json")
 
 	var output homeInitialOutput
-	if err = rjson.Unmarshal([]byte(rawjson), &output); err != nil {
+	if err = rjson.Unmarshal([]byte(rawJson), &output); err != nil {
 		if errors.Unwrap(err) == rjson.ErrCantFindField {
 			if Debug {
 				log.Println("WARNING:", err)
@@ -161,9 +158,7 @@ func (h *HomeVideosScraper) NextPage() (videos []Video, err error) {
 			return
 		}
 
-		if Debug {
-			os.WriteFile("home_videos.json", body, 0777)
-		}
+		debugFileOutput(body, "home_videos_%s.json", h.ContinueInput.Continuation)
 
 		var output homeContinueOutput
 		if err = rjson.Unmarshal(body, &output); err != nil {

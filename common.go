@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func extractInitialData(url string) (rawjson string, err error) {
+func extractInitialData(url string) (rawJson string, err error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		return
@@ -21,7 +21,7 @@ func extractInitialData(url string) (rawjson string, err error) {
 
 	doc.Find("script").Each(func(i int, s *goquery.Selection) {
 		if cut, valid := strings.CutPrefix(s.Text(), "var ytInitialData = "); valid {
-			rawjson, _ = strings.CutSuffix(cut, ";")
+			rawJson, _ = strings.CutSuffix(cut, ";")
 		}
 	})
 

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/ayes-web/rjson"
 	"log"
-	"os"
 	"strings"
 )
 
@@ -70,10 +69,7 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 		return
 	}
 
-	if Debug {
-		fmt.Println("writing initial output to \"video_initial.json\"")
-		os.WriteFile("video_initial.json", []byte(rawJson), 0777)
-	}
+	debugFileOutput([]byte(rawJson), "video_initial.json")
 
 	var output videoInitialOutput
 	if err = rjson.Unmarshal([]byte(rawJson), &output); err != nil {

@@ -6,7 +6,7 @@ import (
 )
 
 func TestChannelVideosScraper(t *testing.T) {
-	scraper := NewChannelVideosScraper("@TomScottGo")
+	scraper := NewChannelScraper("@TomScottGo")
 
 	var (
 		videos         []Video
@@ -14,7 +14,7 @@ func TestChannelVideosScraper(t *testing.T) {
 		printedChannel bool
 	)
 	for {
-		videos, err = scraper.NextPage()
+		videos, err = scraper.NextVideosPage()
 		if err != nil {
 			t.Fatal(err)
 		} else if len(videos) == 0 {

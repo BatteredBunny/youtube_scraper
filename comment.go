@@ -3,12 +3,10 @@ package scraper
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"github.com/ayes-web/rjson"
 	"io"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 )
 
@@ -61,11 +59,7 @@ func (c *Comment) NextSubCommentPage() (comments []Comment, err error) {
 		return
 	}
 
-	if Debug {
-		template := fmt.Sprintf("subcomment_%s.json", c.repliesToken)
-		fmt.Printf("writing current api output to \"%s\"\n", template)
-		os.WriteFile(template, body, 0777)
-	}
+	debugFileOutput(body, "subcomment_%s.json", c.repliesToken)
 
 	var output subCommentsContinueOutput
 	if err = rjson.Unmarshal(body, &output); err != nil {
@@ -159,11 +153,7 @@ func genericNextCommentsPage(token *string, continueInputJson *[]byte, commentsP
 		return
 	}
 
-	if Debug {
-		template := fmt.Sprintf("comment_%s.json", *token)
-		fmt.Printf("writing current api output to \"%s\"\n", template)
-		os.WriteFile(template, body, 0777)
-	}
+	debugFileOutput(body, "comment_%s.json", *token)
 
 	var output commentsContinueOutputCommon
 	if !*commentsPassedInitial {
