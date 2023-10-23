@@ -4,23 +4,28 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/ayes-web/rjson"
 	"io"
 	"log"
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/ayes-web/rjson"
+	"github.com/dustin/go-humanize"
 )
 
 type Channel struct {
-	Subscribers      string
+	Subscribers      int
 	IsVerified       bool
 	IsVerifiedArtist bool
 	ChannelID        string
 	NewChannelID     string
 	Username         string
 	Description      string
-	VideosAmount     string // e.g "15", "1.5K"
+	VideosAmount     int // e.g "15", "1.5K"
+
+	Avatars []YoutubeImage
+	Banners []YoutubeImage
 }
 
 type Video struct {
@@ -83,7 +88,6 @@ type Video struct {
 }
 
 type ChannelScraper struct {
-	//baseChannelUrl *url.URL
 	streamsUrl string
 	videosUrl  string
 	channel    Channel
@@ -135,6 +139,12 @@ func (c *ChannelScraper) GetChannelInfo() (available bool, channel Channel) {
 	return
 }
 
+type YoutubeImage struct {
+	Url    string `rjson:"url"`
+	Width  int    `rjson:"width"`
+	Height int    `rjson:"height"`
+}
+
 type channelInitialAccount struct {
 	Subscribers     string   `rjson:"header.c4TabbedHeaderRenderer.subscriberCountText.simpleText"`
 	ChannelID       string   `rjson:"metadata.channelMetadataRenderer.externalId"`
@@ -143,6 +153,9 @@ type channelInitialAccount struct {
 	Description     string   `rjson:"metadata.channelMetadataRenderer.description"`
 	RawVideosAmount string   `rjson:"header.c4TabbedHeaderRenderer.videosCountText.runs[0].text"`
 	Badges          []string `rjson:"header.c4TabbedHeaderRenderer.badges[].metadataBadgeRenderer.tooltip"`
+
+	Avatars []YoutubeImage `rjson:"header.c4TabbedHeaderRenderer.avatar.thumbnails"`
+	Banners []YoutubeImage `rjson:"header.c4TabbedHeaderRenderer.banner.thumbnails"`
 }
 
 // videoRenderer json type
@@ -204,12 +217,34 @@ func genericChannelInitial(initialComplete *bool, url string, channel *Channel, 
 		return
 	}
 
+	subscribers, unit, err := humanize.ParseSI(fixUnit(strings.TrimSuffix(rawChannel.Subscribers, " subscribers")))
+	if err != nil {
+		return
+	} else if unit != "" {
+		log.Printf("WARNING: possibly wrong number for channel subscribers count: %f%s\n", subscribers, unit)
+	}
+
+	var videosAmount float64
+	if rawChannel.RawVideosAmount == "No videos" {
+		videosAmount = 0
+	} else {
+		videosAmount, unit, err = humanize.ParseSI(fixUnit(rawChannel.RawVideosAmount))
+		if err != nil {
+			return
+		} else if unit != "" {
+			log.Printf("WARNING: possibly wrong number for channel videos amount: %f%s\n", videosAmount, unit)
+		}
+	}
+
 	*channel = Channel{
-		Subscribers:  rawChannel.Subscribers,
+		Subscribers:  int(subscribers),
 		ChannelID:    rawChannel.ChannelID,
 		NewChannelID: rawChannel.NewChannelID,
 		Username:     rawChannel.Username,
 		Description:  rawChannel.Description,
+		VideosAmount: int(videosAmount),
+		Avatars:      rawChannel.Avatars,
+		Banners:      rawChannel.Banners,
 	}
 
 	for _, badge := range rawChannel.Badges {
@@ -219,11 +254,6 @@ func genericChannelInitial(initialComplete *bool, url string, channel *Channel, 
 		case BadgeChannelVerifiedArtistChannel:
 			channel.IsVerifiedArtist = true
 		}
-	}
-
-	channel.VideosAmount = rawChannel.RawVideosAmount
-	if rawChannel.RawVideosAmount == "No videos" {
-		channel.VideosAmount = "0"
 	}
 
 	*continueInputJson, err = continueInput{Continuation: rawToken}.FillGenericInfo().Construct()

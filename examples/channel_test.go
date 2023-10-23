@@ -2,9 +2,29 @@ package examples
 
 import (
 	"encoding/json"
-	"git.catnip.ee/miisu/youtube_scraper"
 	"testing"
+
+	scraper "git.catnip.ee/miisu/youtube_scraper"
 )
+
+func TestJustChannelInfo(t *testing.T) {
+	c, err := scraper.NewChannelScraper("@TomScottGo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err = c.NextVideosPage(); err != nil {
+		t.Fatal(err)
+	}
+
+	_, info := c.GetChannelInfo()
+
+	bs, err := json.MarshalIndent(info, "", "	")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("info:", string(bs))
+}
 
 func TestChannelVideosScraper(t *testing.T) {
 	c, err := scraper.NewChannelScraper("@TomScottGo")

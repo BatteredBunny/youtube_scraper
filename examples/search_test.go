@@ -1,12 +1,12 @@
 package examples
 
 import (
-	scraper "git.catnip.ee/miisu/youtube_scraper"
 	"testing"
+
+	scraper "git.catnip.ee/miisu/youtube_scraper"
 )
 
 func TestSearch(t *testing.T) {
-	scraper.Debug = true
 	searchResults, err := scraper.NewSearch("test")
 	if err != nil {
 		t.Fatal(err)

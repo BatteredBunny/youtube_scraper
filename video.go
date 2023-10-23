@@ -87,15 +87,6 @@ type videoInitialOutput struct {
 
 var mediaUrlJsRegex = regexp.MustCompile(`src="(/s/player/[^\\/]+/player_ias[^\\/]+/en_US/base.js)"`)
 
-// humanize library doesnt seem to understand that "10K" and "10k" are the same thing
-func fixUnit(s string) string {
-	if strings.HasSuffix(s, "K") {
-		s = strings.TrimSuffix(s, "K") + "k"
-	}
-
-	return s
-}
-
 func NewVideoScraper(id string) (v VideoScraper, err error) {
 	rawUrl, err := url.Parse("https://www.youtube.com/watch")
 	if err != nil {
@@ -225,7 +216,7 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 	if err != nil {
 		return
 	} else if unit != "" {
-		log.Printf("WARNING: possibly wrong number for channel subscribers count: %f%s\n", comments, unit)
+		log.Printf("WARNING: possibly wrong number for channel subscribers count: %f%s\n", channelSubscribers, unit)
 	}
 
 	v.VideoInfo = FullVideo{
