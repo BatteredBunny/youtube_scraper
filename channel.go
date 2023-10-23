@@ -101,39 +101,39 @@ type ChannelScraper struct {
 }
 
 type ChannelScraperExport struct {
-	streamsUrl string
-	videosUrl  string
+	StreamsUrl string
+	VideosUrl  string
 
-	videosInitialComplete bool
-	videosContinueToken   string
+	VideosInitialComplete bool
+	VideosContinueToken   string
 
-	streamsInitialComplete bool
-	streamsContinueToken   string
+	StreamsInitialComplete bool
+	StreamsContinueToken   string
 }
 
 func (c *ChannelScraper) Export() ChannelScraperExport {
 	return ChannelScraperExport{
-		streamsUrl:             c.streamsUrl,
-		videosUrl:              c.videosUrl,
-		videosInitialComplete:  c.videosInitialComplete,
-		videosContinueToken:    c.videosContinueInput.Continuation,
-		streamsInitialComplete: c.streamsInitialComplete,
-		streamsContinueToken:   c.streamsContinueInput.Continuation,
+		StreamsUrl:             c.streamsUrl,
+		VideosUrl:              c.videosUrl,
+		VideosInitialComplete:  c.videosInitialComplete,
+		VideosContinueToken:    c.videosContinueInput.Continuation,
+		StreamsInitialComplete: c.streamsInitialComplete,
+		StreamsContinueToken:   c.streamsContinueInput.Continuation,
 	}
 }
 
 func ChannelScraperFromExport(export ChannelScraperExport) (c ChannelScraper, err error) {
-	c.streamsUrl = export.streamsUrl
-	c.streamsInitialComplete = export.streamsInitialComplete
-	c.streamsContinueInput = continueInput{Continuation: export.streamsContinueToken}.FillGenericInfo()
+	c.streamsUrl = export.StreamsUrl
+	c.streamsInitialComplete = export.StreamsInitialComplete
+	c.streamsContinueInput = continueInput{Continuation: export.StreamsContinueToken}.FillGenericInfo()
 	c.streamsContinueInputJson, err = c.streamsContinueInput.Construct()
 	if err != nil {
 		return
 	}
 
-	c.videosUrl = export.videosUrl
-	c.videosInitialComplete = export.videosInitialComplete
-	c.videosContinueInput = continueInput{Continuation: export.videosContinueToken}.FillGenericInfo()
+	c.videosUrl = export.VideosUrl
+	c.videosInitialComplete = export.VideosInitialComplete
+	c.videosContinueInput = continueInput{Continuation: export.VideosContinueToken}.FillGenericInfo()
 	c.videosContinueInputJson, err = c.videosContinueInput.Construct()
 	if err != nil {
 		return
