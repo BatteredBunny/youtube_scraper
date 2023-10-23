@@ -1,7 +1,7 @@
 package scraper
 
 import (
-	"log"
+	"encoding/json"
 	"testing"
 )
 
@@ -23,7 +23,11 @@ func TestChannelVideosScraper(t *testing.T) {
 
 		if !printedChannel {
 			if available, channel := scraper.GetChannelInfo(); available {
-				log.Println(channel)
+				bs, err := json.MarshalIndent(channel, "", "	")
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Log(string(bs))
 			}
 
 			printedChannel = true
@@ -53,7 +57,11 @@ func TestChannelStreamsScraper(t *testing.T) {
 
 		if !printedChannel {
 			if available, channel := scraper.GetChannelInfo(); available {
-				log.Println("channel:", channel)
+				bs, err := json.MarshalIndent(channel, "", "	")
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Log(string(bs))
 			}
 
 			printedChannel = true

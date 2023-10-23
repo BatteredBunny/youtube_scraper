@@ -35,6 +35,8 @@ type Video struct {
 	Views string `json:"Views"`
 
 	/*
+		Will be empty if its livestream
+
 		Years
 			- 2-11 years ago
 			- 1 year ago
@@ -68,9 +70,10 @@ type Video struct {
 	ChannelID    string `json:"ChannelID"`
 	NewChannelID string `json:"NewChannelID"` // @username
 
-	Viewers string `json:"Viewers"`
-	IsLive  bool   `json:"IsLive"`
-	WasLive bool   `json:"WasLive"`
+	Viewers          string `json:"Viewers"`
+	IsLive           bool   `json:"IsLive"`
+	WasLive          bool   `json:"WasLive"`
+	AuthorIsVerified bool   `json:"AuthorIsVerified"`
 }
 
 type ChannelScraper struct {
@@ -126,6 +129,23 @@ type channelInitialVideo struct {
 	Views   string `rjson:"richItemRenderer.content.videoRenderer.viewCountText.simpleText"`
 	Viewers string `rjson:"richItemRenderer.content.videoRenderer.viewCountText.runs[0].text"`
 	Date    string `rjson:"richItemRenderer.content.videoRenderer.publishedTimeText.simpleText"`
+}
+
+func (video channelInitialVideo) ToVideo(channel *Channel) Video {
+	date, wasLive := strings.CutPrefix(video.Date, "Streamed ")
+	return Video{
+		VideoID:          video.VideoID,
+		Title:            video.Title,
+		Length:           video.Length,
+		Views:            video.Views,
+		Viewers:          video.Viewers,
+		Date:             date,
+		ChannelID:        channel.ChannelID,
+		NewChannelID:     channel.NewChannelID,
+		WasLive:          wasLive,
+		IsLive:           len(video.Viewers) > 0,
+		AuthorIsVerified: channel.IsVerified,
+	}
 }
 
 type channelVideosInitialOutput struct {
@@ -189,19 +209,7 @@ func genericChannelInitial(initialComplete *bool, url string, channel *Channel, 
 			continue
 		}
 
-		date, wasLive := strings.CutPrefix(video.Date, "Streamed ")
-		videos = append(videos, Video{
-			VideoID:      video.VideoID,
-			Title:        video.Title,
-			Length:       video.Length,
-			Views:        video.Views,
-			Viewers:      video.Viewers,
-			Date:         date,
-			ChannelID:    channel.ChannelID,
-			NewChannelID: channel.NewChannelID,
-			WasLive:      wasLive,
-			IsLive:       len(video.Viewers) > 0,
-		})
+		videos = append(videos, video.ToVideo(channel))
 	}
 
 	*initialComplete = true
@@ -236,19 +244,7 @@ func genericChannelPage(channel *Channel, continueInputJson *[]byte, outputGener
 			continue
 		}
 
-		date, wasLive := strings.CutPrefix(video.Date, "Streamed ")
-		videos = append(videos, Video{
-			VideoID:      video.VideoID,
-			Title:        video.Title,
-			Length:       video.Length,
-			Views:        video.Views,
-			Viewers:      video.Viewers,
-			Date:         date,
-			ChannelID:    channel.ChannelID,
-			NewChannelID: channel.NewChannelID,
-			WasLive:      wasLive,
-			IsLive:       len(video.Viewers) > 0,
-		})
+		videos = append(videos, video.ToVideo(channel))
 	}
 
 	return

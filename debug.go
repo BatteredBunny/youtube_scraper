@@ -12,7 +12,7 @@ func debugFileOutput(body []byte, format string, discriminator ...string) {
 	if Debug {
 		var template string
 		if len(discriminator) > 0 {
-			template = fmt.Sprintf(format, discriminator[0])
+			template = fmt.Sprintf(format, discriminator[0][:20])
 		} else {
 			template = format
 		}

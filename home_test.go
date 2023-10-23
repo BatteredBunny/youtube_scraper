@@ -1,6 +1,9 @@
 package scraper
 
-import "testing"
+import (
+	"encoding/json"
+	"testing"
+)
 
 func TestHomeVideosScraper(t *testing.T) {
 	h := NewHomeVideosScraper()
@@ -15,7 +18,11 @@ func TestHomeVideosScraper(t *testing.T) {
 		}
 
 		for _, video := range videos {
-			t.Log(video.VideoID, video.Title, video.Views)
+			bs, err := json.MarshalIndent(video, "", "	")
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Log(string(bs))
 		}
 	}
 }
