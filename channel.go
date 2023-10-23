@@ -94,7 +94,7 @@ func NewChannelVideosScraper(id string) (c ChannelVideosScraper) {
 	return
 }
 
-// After the first page this data will become available
+// GetChannelInfo will output the internal channel struct after its become available with first NextPage() call
 func (c *ChannelVideosScraper) GetChannelInfo() (available bool, channel Channel) {
 	if c.InitialComplete {
 		channel = c.channel
@@ -107,7 +107,7 @@ func (c *ChannelVideosScraper) GetChannelInfo() (available bool, channel Channel
 }
 
 func constructContinue(token string) (ContinueInputJson []byte, err error) {
-	continueInput := accountScrapeContinueInput{}
+	continueInput := continueInput{}
 	continueInput.Context.Client.Hl = "en"
 	continueInput.Context.Client.ClientName = "WEB"
 	continueInput.Context.Client.ClientVersion = "2.20230706.00.00"
@@ -208,7 +208,7 @@ func (c *ChannelVideosScraper) NextPage() (videos []Video, err error) {
 			return
 		}
 
-		var output ContinueOutput
+		var output continueOutput
 		if err = json.Unmarshal(body, &output); err != nil {
 			return
 		}
