@@ -18,7 +18,7 @@ func TestVideoCommentNewestScraper(t *testing.T) {
 		}
 
 		for _, comment := range comments {
-			t.Log("id:", comment.CommentID, "content:", comment.Content)
+			t.Log("id:", comment.CommentID, "content:", comment.Content, "date:", comment.PublishedTime)
 		}
 	}
 }
@@ -29,17 +29,13 @@ func TestVideoCommentTopScraper(t *testing.T) {
 	}
 
 	var comments []Comment
-	for {
-		comments, err = scraper.NextTopCommentsPage()
-		if err != nil {
-			t.Fatal(err)
-		} else if len(comments) == 0 {
-			break
-		}
+	comments, err = scraper.NextTopCommentsPage()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-		for _, comment := range comments {
-			t.Log("id:", comment.CommentID, "replies amount:", comment.RepliesAmount)
-		}
+	for _, comment := range comments {
+		t.Log("id:", comment.CommentID, "likes:", comment.LikeAmount, "content:", comment.Content)
 	}
 }
 

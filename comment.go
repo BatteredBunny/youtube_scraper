@@ -121,25 +121,7 @@ type commentsContinueOutput struct {
 	ContinueToken string                         `rjson:"onResponseReceivedEndpoints[0]appendContinuationItemsAction.continuationItems[-]continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
 }
 
-func (n commentsContinueOutputInitial) GetComments() []commentContinueOutputComment {
-	return n.Comments
-}
-func (n commentsContinueOutputInitial) GetContinueToken() string {
-	return n.ContinueToken
-}
-func (n commentsContinueOutput) GetComments() []commentContinueOutputComment {
-	return n.Comments
-}
-func (n commentsContinueOutput) GetContinueToken() string {
-	return n.ContinueToken
-}
-
-type commentsContinueOutputCommon interface {
-	GetComments() []commentContinueOutputComment
-	GetContinueToken() string
-}
-
-func genericNextCommentsPage(token *string, continueInputJson *[]byte, commentsPassedInitial *bool) (comments []Comment, err error) {
+func genericNextCommentsPage(token *string, continueInputJson *[]byte, outputGeneric func(rawJson []byte) (rawToken string, rawComments []commentContinueOutputComment, err error)) (comments []Comment, err error) {
 	var resp *http.Response
 	resp, err = http.Post("https://www.youtube.com/youtubei/v1/next", "application/json", bytes.NewReader(*continueInputJson))
 	if err != nil {
@@ -153,44 +135,18 @@ func genericNextCommentsPage(token *string, continueInputJson *[]byte, commentsP
 		return
 	}
 
-	debugFileOutput(body, "comment_%s.json", *token)
-
-	var output commentsContinueOutputCommon
-	if !*commentsPassedInitial {
-		var tempout commentsContinueOutputInitial
-		if err = rjson.Unmarshal(body, &tempout); err != nil {
-			if errors.Unwrap(err) == rjson.ErrCantFindField {
-				if Debug {
-					log.Println("WARNING:", err)
-				}
-				err = nil
-			}
-			return
-		}
-
-		*commentsPassedInitial = true
-		output = tempout
-	} else {
-		var tempout commentsContinueOutput
-		if err = rjson.Unmarshal(body, &tempout); err != nil {
-			if errors.Unwrap(err) == rjson.ErrCantFindField {
-				if Debug {
-					log.Println("WARNING:", err)
-				}
-				err = nil
-			}
-			return
-		}
-		output = tempout
+	rawToken, rawComments, err := outputGeneric(body)
+	if err != nil {
+		return
 	}
 
-	*token = output.GetContinueToken()
+	*token = rawToken
 	*continueInputJson, err = continueInput{Continuation: *token}.FillGenericInfo().Construct()
 	if err != nil {
 		return
 	}
 
-	for _, comment := range output.GetComments() {
+	for _, comment := range rawComments {
 		if comment.CommentID == "" {
 			continue
 		}
@@ -229,10 +185,82 @@ func genericNextCommentsPage(token *string, continueInputJson *[]byte, commentsP
 
 // NextNewestCommentsPage returns comments in chunks sorted by newest
 func (v *VideoScraper) NextNewestCommentsPage() (comments []Comment, err error) {
-	return genericNextCommentsPage(&v.commentsNewestToken, &v.commentsNewestContinueInputJson, &v.commentsNewestPassedInitial)
+	return genericNextCommentsPage(&v.commentsNewestToken, &v.commentsNewestContinueInputJson, func(rawJson []byte) (rawToken string, rawComments []commentContinueOutputComment, err error) {
+		if !v.commentsNewestPassedInitial {
+			debugFileOutput(rawJson, "comment_newest_initial_%s.json", v.commentsNewestToken)
+
+			var output commentsContinueOutputInitial
+			if err = rjson.Unmarshal(rawJson, &output); err != nil {
+				if errors.Unwrap(err) == rjson.ErrCantFindField {
+					if Debug {
+						log.Println("WARNING:", err)
+					}
+					err = nil
+				}
+				return
+			}
+
+			rawToken = output.ContinueToken
+			rawComments = output.Comments
+			v.commentsNewestPassedInitial = true
+		} else {
+			debugFileOutput(rawJson, "comment_newest_%s.json", v.commentsNewestToken)
+
+			var output commentsContinueOutput
+			if err = rjson.Unmarshal(rawJson, &output); err != nil {
+				if errors.Unwrap(err) == rjson.ErrCantFindField {
+					if Debug {
+						log.Println("WARNING:", err)
+					}
+					err = nil
+				}
+				return
+			}
+
+			rawToken = output.ContinueToken
+			rawComments = output.Comments
+		}
+
+		return
+	})
 }
 
 // NextTopCommentsPage returns comments in chunks sorted by most popular
 func (v *VideoScraper) NextTopCommentsPage() (comments []Comment, err error) {
-	return genericNextCommentsPage(&v.commentsTopToken, &v.commentsTopContinueInputJson, &v.commentsTopPassedInitial)
+	return genericNextCommentsPage(&v.commentsTopToken, &v.commentsTopContinueInputJson, func(rawJson []byte) (rawToken string, rawComments []commentContinueOutputComment, err error) {
+		debugFileOutput(rawJson, "comment_top_%s.json", v.commentsTopToken)
+
+		if !v.commentsTopPassedInitial {
+			var output commentsContinueOutputInitial
+			if err = rjson.Unmarshal(rawJson, &output); err != nil {
+				if errors.Unwrap(err) == rjson.ErrCantFindField {
+					if Debug {
+						log.Println("WARNING:", err)
+					}
+					err = nil
+				}
+				return
+			}
+
+			rawToken = output.ContinueToken
+			rawComments = output.Comments
+			v.commentsTopPassedInitial = true
+		} else {
+			var output commentsContinueOutput
+			if err = rjson.Unmarshal(rawJson, &output); err != nil {
+				if errors.Unwrap(err) == rjson.ErrCantFindField {
+					if Debug {
+						log.Println("WARNING:", err)
+					}
+					err = nil
+				}
+				return
+			}
+
+			rawToken = output.ContinueToken
+			rawComments = output.Comments
+		}
+
+		return
+	})
 }

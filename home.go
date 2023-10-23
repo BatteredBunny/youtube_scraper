@@ -29,22 +29,24 @@ func NewHomeVideosScraper() (h HomeVideosScraper) {
 }
 
 type homeInitialOutputVideo struct {
-	VideoID         string   `rjson:"videoId"`
-	Title           string   `rjson:"title.runs[0].text"`
-	Length          string   `rjson:"lengthText.simpleText"`
-	Views           string   `rjson:"viewCountText.simpleText"`
-	Viewers         string   `rjson:"viewCountText.runs[0].text"`
-	Date            string   `rjson:"publishedTimeText.simpleText"`
-	Username        string   `rjson:"longBylineText.runs[0].text"`
-	ChannelID       string   `rjson:"longBylineText.runs[0].navigationEndpoint.browseEndpoint.browseId"`
-	RawNewChannelID string   `rjson:"longBylineText.runs[0].navigationEndpoint.browseEndpoint.canonicalBaseUrl"`
-	Badges          []string `rjson:"ownerBadges[].metadataBadgeRenderer.tooltip"`
+	VideoID         string `rjson:"videoId"`
+	Title           string `rjson:"title.runs[0].text"`
+	Length          string `rjson:"lengthText.simpleText"`
+	Views           string `rjson:"viewCountText.simpleText"`
+	Viewers         string `rjson:"viewCountText.runs[0].text"`
+	Date            string `rjson:"publishedTimeText.simpleText"`
+	Username        string `rjson:"longBylineText.runs[0].text"`
+	ChannelID       string `rjson:"longBylineText.runs[0].navigationEndpoint.browseEndpoint.browseId"`
+	RawNewChannelID string `rjson:"longBylineText.runs[0].navigationEndpoint.browseEndpoint.canonicalBaseUrl"`
+
+	OwnerBadges []string `rjson:"ownerBadges[].metadataBadgeRenderer.tooltip"`
 }
 
 func (video homeInitialOutputVideo) ToVideo() Video {
 	var authorIsVerified bool
-	for _, badge := range video.Badges {
-		if badge == "Verified" {
+	for _, ownerBadge := range video.OwnerBadges {
+		switch ownerBadge {
+		case "Verified":
 			authorIsVerified = true
 		}
 	}
@@ -79,7 +81,7 @@ type homeInitialOutput struct {
 				VideoId string `rjson:"videoId"`
 				Title   string `rjson:"headline.simpleText"`
 				Views   string `rjson:"viewCountText.simpleText"`
-				//Possibly parse length from here, example: Daily dose of cute animals for you ❤️v29 Chill Lofi - 1 minute - play video
+				//Possibly parse length from here, example: Daily dose of cute animals for you ❤️v29 Chill Lofi - 1 minute - play VideoInfo
 				//Length string `rjson:"accessibility.accessibilityData.label"`
 			} `rjson:"richItemRenderer.content.reelItemRenderer"`
 			Video homeInitialOutputVideo `rjson:"richItemRenderer.content.videoRenderer"`
@@ -122,13 +124,13 @@ func (h *HomeVideosScraper) runInitial() (videos []Video, err error) {
 	for _, video := range output.Videos {
 		if video.ShelfName != "" {
 			// TODO: return shelves in api
-			//fmt.Println("Reading shelf", video.ShelfName)
-			//isShortsShelf := video.ShelfItems[0].Short.VideoId != ""
-			//for _, gen := range video.ShelfItems {
+			//fmt.Println("Reading shelf", VideoInfo.ShelfName)
+			//isShortsShelf := VideoInfo.ShelfItems[0].Short.VideoId != ""
+			//for _, gen := range VideoInfo.ShelfItems {
 			//	if isShortsShelf {
 			//		fmt.Println(gen.Short)
 			//	} else {
-			//		fmt.Println(gen.Video)
+			//		fmt.Println(gen.VideoInfo)
 			//	}
 			//}
 		} else {

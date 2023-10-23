@@ -6,12 +6,12 @@ import (
 )
 
 func TestLttVideo(t *testing.T) {
-	scraper, err := NewVideoScraper("FdbvrqC6lOY") // normal video
+	scraper, err := NewVideoScraper("FdbvrqC6lOY") // normal VideoInfo
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	video := scraper.GetVideo()
+	video := scraper.VideoInfo
 	assert.TestState = t
 	assert.HideSuccess = true
 	assert.Equals(video.VideoID, "FdbvrqC6lOY")
@@ -35,7 +35,7 @@ func TestPastLttLivestream(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	video := scraper.GetVideo()
+	video := scraper.VideoInfo
 	assert.TestState = t
 	assert.HideSuccess = true
 	assert.Assert(!video.IsLive, "marked as live")
@@ -59,7 +59,7 @@ func TestLttLivestream(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	video := scraper.GetVideo()
+	video := scraper.VideoInfo
 	assert.TestState = t
 	assert.HideSuccess = true
 	assert.Equals(video.VideoID, "DzLdFmPncms")

@@ -9,8 +9,10 @@ import (
 )
 
 type VideoScraper struct {
-	url   string
-	video FullVideo
+	VideoInfo            FullVideo
+	InitialSidebarVideos []SidebarVideo
+
+	url string
 
 	commentsNewestPassedInitial     bool
 	commentsNewestToken             string
@@ -19,16 +21,19 @@ type VideoScraper struct {
 	commentsTopPassedInitial     bool
 	commentsTopToken             string
 	commentsTopContinueInputJson []byte
+
+	sidebarToken             string
+	sidebarContinueInputJson []byte
 }
 
-// FullVideo has the full metadata unlike Video which is fetched from video lists
+// FullVideo has the full metadata unlike Video which is fetched from Video lists
 type FullVideo struct {
 	VideoID       string `json:"VideoID"`
 	Title         string `json:"Title"`
 	Description   string `json:"Description"`
 	Views         string `json:"Views"` // if its live this will display number of viewers instead
 	IsLive        bool   `json:"IsLive"`
-	WasLive       bool   `json:"WasLive"` // if this video was live
+	WasLive       bool   `json:"WasLive"` // if this Video was live
 	Date          string `json:"Date"`    // Date will be in this format: "Jul 12, 2023"
 	Likes         string `json:"Likes"`
 	CommentsCount string `json:"CommentsCount"`
@@ -58,6 +63,9 @@ type videoInitialOutput struct {
 		Title string `rjson:"title"`
 		Token string `rjson:"serviceEndpoint.continuationCommand.token"`
 	} `rjson:"engagementPanels[].engagementPanelSectionListRenderer.header.engagementPanelTitleHeaderRenderer.menu.sortFilterSubMenuRenderer.subMenuItems[0]"`
+
+	SidebarVideos []rawSidebarVideo `rjson:"contents.twoColumnWatchNextResults.secondaryResults.secondaryResults.results"`
+	SidebarToken  string            `rjson:"contents.twoColumnWatchNextResults.secondaryResults.secondaryResults.results[-].continuationItemRenderer.button.buttonRenderer.command.continuationCommand.token"`
 }
 
 func NewVideoScraper(id string) (v VideoScraper, err error) {
@@ -91,6 +99,8 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 		}
 	}
 
+	v.sidebarToken = output.SidebarToken
+
 	v.commentsNewestContinueInputJson, err = continueInput{Continuation: v.commentsNewestToken}.FillGenericInfo().Construct()
 	if err != nil {
 		return
@@ -99,11 +109,23 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 	if err != nil {
 		return
 	}
+	v.sidebarContinueInputJson, err = continueInput{Continuation: v.sidebarToken}.FillGenericInfo().Construct()
+	if err != nil {
+		return
+	}
+
+	for _, sidebarVideo := range output.SidebarVideos {
+		if sidebarVideo.VideoID == "" {
+			continue
+		}
+
+		v.InitialSidebarVideos = append(v.InitialSidebarVideos, sidebarVideo.ToSidebarVideo())
+	}
 
 	date, wasLive := strings.CutPrefix(output.Date, "Streamed live on ")
 	date, isLive := strings.CutPrefix(date, "Started streaming on ")
 
-	v.video = FullVideo{
+	v.VideoInfo = FullVideo{
 		VideoID:            id,
 		Title:              output.Title,
 		Description:        output.Description,
@@ -121,8 +143,4 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 	}
 
 	return
-}
-
-func (v *VideoScraper) GetVideo() FullVideo {
-	return v.video
 }
