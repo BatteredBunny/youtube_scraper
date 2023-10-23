@@ -38,16 +38,16 @@ func (s SidebarEntry) IsRadio() bool {
 }
 
 type SidebarVideo struct {
-	VideoID         string
-	Title           string
-	Username        string
-	ChannelID       string
-	RawNewChannelID string
-	Date            string
-	Views           int
-	Viewers         int
-	Length          string
-	Thumbnails      []scraper.YoutubeImage
+	VideoID      string
+	Title        string
+	Username     string
+	ChannelID    string
+	NewChannelID string
+	Date         string
+	Views        int
+	Viewers      int
+	Length       string
+	Thumbnails   []scraper.YoutubeImage
 
 	AuthorIsVerified, AuthorIsVerifiedArtist bool
 	HasNewBadge, HasCCBadge, Has4kBadge      bool
@@ -119,15 +119,15 @@ func (sidebarEntry rawSidebarEntry) ToSidebarEntry() (s SidebarEntry, err error)
 		s = SidebarEntry{
 			Type: SidebarEntryTypeVideo,
 			Entry: SidebarVideo{
-				VideoID:         sidebarEntry.Video.VideoID,
-				Title:           sidebarEntry.Video.Title,
-				Username:        sidebarEntry.Video.Username,
-				ChannelID:       sidebarEntry.Video.ChannelID,
-				RawNewChannelID: strings.TrimPrefix(sidebarEntry.Video.RawNewChannelID, "/"),
-				Date:            date,
-				Views:           int(views),
-				Viewers:         viewers,
-				Length:          sidebarEntry.Video.Length,
+				VideoID:      sidebarEntry.Video.VideoID,
+				Title:        sidebarEntry.Video.Title,
+				Username:     sidebarEntry.Video.Username,
+				ChannelID:    sidebarEntry.Video.ChannelID,
+				NewChannelID: strings.TrimPrefix(sidebarEntry.Video.RawNewChannelID, "/"),
+				Date:         date,
+				Views:        int(views),
+				Viewers:      viewers,
+				Length:       sidebarEntry.Video.Length,
 
 				AuthorIsVerified: authorIsVerified, AuthorIsVerifiedArtist: authorIsVerifiedArtist,
 				HasNewBadge: hasNewBadge, HasCCBadge: hasCCBadge, Has4kBadge: has4kBadge,
