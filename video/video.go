@@ -129,13 +129,13 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 		switch token.Title {
 		case "Top comments":
 			v.commentsTopContinueInput = scraper.ContinueInput{Continuation: token.Token}.FillGenericInfo()
-			v.commentsTopContinueInputJson, err = v.commentsNewestContinueInput.Construct()
+			v.commentsTopContinueInputJson, err = v.commentsTopContinueInput.Construct()
 			if err != nil {
 				return
 			}
 		case "Newest first":
 			v.commentsNewestContinueInput = scraper.ContinueInput{Continuation: token.Token}.FillGenericInfo()
-			v.commentsNewestContinueInputJson, err = v.commentsTopContinueInput.Construct()
+			v.commentsNewestContinueInputJson, err = v.commentsNewestContinueInput.Construct()
 			if err != nil {
 				return
 			}
