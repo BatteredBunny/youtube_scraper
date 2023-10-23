@@ -35,21 +35,22 @@ type VideoScraper struct {
 
 // FullVideo has the full metadata unlike Video which is fetched from Video lists
 type FullVideo struct {
-	VideoID       string `json:"VideoID"`
-	Title         string `json:"Title"`
-	Description   string `json:"Description"`
-	Views         string `json:"Views"` // if its live this will display number of viewers instead
-	IsLive        bool   `json:"IsLive"`
-	WasLive       bool   `json:"WasLive"` // if this Video was live
-	Date          string `json:"Date"`    // Date will be in this format: "Jul 12, 2023"
-	Likes         string `json:"Likes"`
-	CommentsCount string `json:"CommentsCount"`
-	Category      string `json:"Category"`
+	VideoID       string
+	Title         string
+	Description   string
+	Views         string // if its live this will display number of viewers instead
+	IsLive        bool
+	WasLive       bool   // if this Video was live
+	Date          string // Date will be in this format: "Jul 12, 2023"
+	Likes         string
+	CommentsCount string
+	Category      string
+	IsUnlisted    bool
 
-	Username           string `json:"Username"`
-	ChannelID          string `json:"ChannelID"`
-	NewChannelID       string `json:"NewChannelID"`
-	ChannelSubscribers string `json:"ChannelSubscribers"`
+	Username           string
+	ChannelID          string
+	NewChannelID       string
+	ChannelSubscribers string
 
 	ChannelIsVerified       bool
 	ChannelIsVerifiedArtist bool
@@ -69,6 +70,7 @@ type videoInitialOutput struct {
 	CommentsCount      string   `rjson:"contents.twoColumnWatchNextResults.results.results.contents[2].itemSectionRenderer.contents[0].commentsEntryPointHeaderRenderer.commentCount.simpleText"`
 	Category           string   `rjson:"contents.twoColumnWatchNextResults.results.results.contents[1].videoSecondaryInfoRenderer.metadataRowContainer.metadataRowContainerRenderer.rows[0].richMetadataRowRenderer.contents[1].richMetadataRenderer.title.runs[0].text"`
 	OwnerBadges        []string `rjson:"contents.twoColumnWatchNextResults.results.results.contents[1].videoSecondaryInfoRenderer.owner.videoOwnerRenderer.badges[].metadataBadgeRenderer.tooltip"`
+	Badges             []string `rjson:"contents.twoColumnWatchNextResults.results.results.contents[0].videoPrimaryInfoRenderer.badges[].metadataBadgeRenderer.label"`
 
 	Tokens []struct {
 		Title string `rjson:"title"`
@@ -145,6 +147,14 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 		}
 	}
 
+	var videoIsUnlisted bool
+	for _, badge := range output.Badges {
+		switch badge {
+		case "Unlisted":
+			videoIsUnlisted = true
+		}
+	}
+
 	v.sidebarToken = output.SidebarToken
 
 	v.commentsNewestContinueInputJson, err = continueInput{Continuation: v.commentsNewestToken}.FillGenericInfo().Construct()
@@ -186,6 +196,7 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 		ChannelSubscribers:      strings.TrimSuffix(output.ChannelSubscribers, " subscribers"),
 		ChannelIsVerified:       channelIsVerified,
 		ChannelIsVerifiedArtist: channelIsVerifiedArtist,
+		IsUnlisted:              videoIsUnlisted,
 	}
 
 	return

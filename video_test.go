@@ -101,7 +101,6 @@ func TestNotVerified(t *testing.T) {
 }
 
 func TestArtistVideo(t *testing.T) {
-	Debug = true
 	scraper, err := NewVideoScraper("U3ASj1L6_sY")
 	if err != nil {
 		t.Fatal(err)
@@ -115,6 +114,25 @@ func TestArtistVideo(t *testing.T) {
 	assert.Equals(video.Title, "Adele - Easy On Me (Official Video)")
 	assert.Assert(!video.ChannelIsVerified, "channel shouldnt be verified")
 	assert.Assert(video.ChannelIsVerifiedArtist, "channel should be an artist")
+}
+
+func TestUnlistedVideo(t *testing.T) {
+	scraper, err := NewVideoScraper("NkpskWvac3U")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	video := scraper.VideoInfo
+	assert.TestState = t
+	assert.HideSuccess = true
+	assert.Equals(video.ChannelID, "UCFQMnBA3CS502aghlcr0_aw")
+	assert.Equals(video.VideoID, "NkpskWvac3U")
+	assert.Equals(video.Username, "Coffeezilla")
+	assert.Equals(video.NewChannelID, "@Coffeezilla")
+	assert.Equals(video.Title, "Pewdiepie's Last Hope - Save a Swede By Going AFK")
+	assert.Assert(video.ChannelIsVerified, "channel should be verified")
+	assert.Assert(!video.ChannelIsVerifiedArtist, "channel shouldnt be an artist")
+	assert.Assert(video.IsUnlisted, "should be unlisted")
 }
 
 // TODO: make it actually check if the media url is valid
