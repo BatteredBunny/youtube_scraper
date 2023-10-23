@@ -125,23 +125,25 @@ type Comment struct {
 	LikeAmount    string // Empty means 0 likes
 	PinnedBy      string // "Pinned by Username"
 	IsPinned      bool
+	IsHearted     bool
 }
 
-type newestCommentContinueOutputComment struct {
+type commentContinueOutputComment struct {
 	NewChannelID  string   `rjson:"commentThreadRenderer.comment.commentRenderer.authorText.simpleText"`
 	CommentID     string   `rjson:"commentThreadRenderer.comment.commentRenderer.commentId"`
 	Content       []string `rjson:"commentThreadRenderer.comment.commentRenderer.contentText.runs[].text"`
 	PublishedTime string   `rjson:"commentThreadRenderer.comment.commentRenderer.publishedTimeText.runs[0].text"` // ends with "(edited)" if the comment has been edited
 	LikeAmount    string   `rjson:"commentThreadRenderer.comment.commentRenderer.voteCount.simpleText"`           // 3K
 	Pinned        []string `rjson:"commentThreadRenderer.comment.commentRenderer.pinnedCommentBadge.pinnedCommentBadgeRenderer.label.runs[].text"`
+	IsHearted     bool     `rjson:"commentThreadRenderer.comment.commentRenderer.actionButtons.commentActionButtonsRenderer.creatorHeart.creatorHeartRenderer.isHearted"`
 }
 
 type commentsContinueOutputInitial struct {
-	Comments      []newestCommentContinueOutputComment `rjson:"onResponseReceivedEndpoints[1]reloadContinuationItemsCommand.continuationItems"`
-	ContinueToken string                               `rjson:"onResponseReceivedEndpoints[1]reloadContinuationItemsCommand.continuationItems[-]continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
+	Comments      []commentContinueOutputComment `rjson:"onResponseReceivedEndpoints[1]reloadContinuationItemsCommand.continuationItems"`
+	ContinueToken string                         `rjson:"onResponseReceivedEndpoints[1]reloadContinuationItemsCommand.continuationItems[-]continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
 }
 
-func (n commentsContinueOutputInitial) GetComments() []newestCommentContinueOutputComment {
+func (n commentsContinueOutputInitial) GetComments() []commentContinueOutputComment {
 	return n.Comments
 }
 func (n commentsContinueOutputInitial) GetContinueToken() string {
@@ -149,11 +151,11 @@ func (n commentsContinueOutputInitial) GetContinueToken() string {
 }
 
 type commentsContinueOutput struct {
-	Comments      []newestCommentContinueOutputComment `rjson:"onResponseReceivedEndpoints[0]appendContinuationItemsAction.continuationItems"`
-	ContinueToken string                               `rjson:"onResponseReceivedEndpoints[0]appendContinuationItemsAction.continuationItems[-]continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
+	Comments      []commentContinueOutputComment `rjson:"onResponseReceivedEndpoints[0]appendContinuationItemsAction.continuationItems"`
+	ContinueToken string                         `rjson:"onResponseReceivedEndpoints[0]appendContinuationItemsAction.continuationItems[-]continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
 }
 
-func (n commentsContinueOutput) GetComments() []newestCommentContinueOutputComment {
+func (n commentsContinueOutput) GetComments() []commentContinueOutputComment {
 	return n.Comments
 }
 func (n commentsContinueOutput) GetContinueToken() string {
@@ -161,11 +163,10 @@ func (n commentsContinueOutput) GetContinueToken() string {
 }
 
 type commentsContinueOutputCommon interface {
-	GetComments() []newestCommentContinueOutputComment
+	GetComments() []commentContinueOutputComment
 	GetContinueToken() string
 }
 
-// TODO: add field indicating if comment is liked by creator badge
 // TODO: comment subsection/comment replies
 func genericNextCommentsPage(token *string, continueInputJson *[]byte, commentsPassedInitial *bool) (comments []Comment, err error) {
 	var resp *http.Response
@@ -234,6 +235,7 @@ func genericNextCommentsPage(token *string, continueInputJson *[]byte, commentsP
 			LikeAmount:    comment.LikeAmount,
 			PinnedBy:      strings.Join(comment.Pinned, ""),
 			IsPinned:      len(comment.Pinned) > 0,
+			IsHearted:     comment.IsHearted,
 		})
 	}
 
