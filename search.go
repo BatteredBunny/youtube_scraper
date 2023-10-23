@@ -99,7 +99,7 @@ func (rawVideo searchVideoRenderer) ToVideo() (video SearchVideo, err error) {
 		NewChannelID:         strings.TrimPrefix(rawVideo.NewChannelID, "/"),
 
 		HasNewBadge: hasNewBadge, HasCCBadge: hasCCBadge, Has4kBadge: has4kBadge,
-		IsVerified: isVerified, IsVerifiedArtist: isVerifiedArtist,
+		AuthorIsVerified: isVerified, AuthorIsVerifiedArtist: isVerifiedArtist,
 	}
 	return
 }
@@ -114,8 +114,8 @@ type SearchVideo struct {
 	Thumbnails     []YoutubeImage
 	ChannelAvatar  string
 
-	HasNewBadge, HasCCBadge, Has4kBadge bool
-	IsVerified, IsVerifiedArtist        bool
+	HasNewBadge, HasCCBadge, Has4kBadge      bool
+	AuthorIsVerified, AuthorIsVerifiedArtist bool
 
 	Username, ChannelID, NewChannelID string
 
