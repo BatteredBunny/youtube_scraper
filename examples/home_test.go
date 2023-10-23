@@ -35,7 +35,7 @@ func TestHomeContinue(t *testing.T) {
 	h.NextPage()
 
 	var err error
-	h, err = scraper.HomeVideosScraperFromToken(h.Export())
+	h, err = scraper.HomeVideosScraperFromExport(h.Export())
 	if err != nil {
 		t.Fatal(err)
 	}
