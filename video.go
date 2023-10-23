@@ -9,9 +9,12 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ayes-web/rjson"
+	"github.com/dustin/go-humanize"
 )
 
 type VideoScraper struct {
@@ -35,22 +38,23 @@ type VideoScraper struct {
 
 // FullVideo has the full metadata unlike Video which is fetched from Video lists
 type FullVideo struct {
-	VideoID       string
-	Title         string
-	Description   string
-	Views         string // if its live this will display number of viewers instead
-	IsLive        bool
-	WasLive       bool   // if this Video was live
-	Date          string // Date will be in this format: "Jul 12, 2023"
-	Likes         string
-	CommentsCount string
-	Category      string
-	IsUnlisted    bool
+	VideoID        string
+	Title          string
+	Description    string
+	Views          int // Displays number of video views exept in a livestream where it will display number of viewers
+	IsLive         bool
+	WasLive        bool      // if this video was live in the past
+	Date           time.Time // video upload date
+	Likes          int
+	CommentsCount  int
+	Category       string // video category
+	IsUnlisted     bool
+	VideoPremiered bool // if the video was premiered in the past
 
 	Username           string
 	ChannelID          string
 	NewChannelID       string
-	ChannelSubscribers string
+	ChannelSubscribers int
 
 	ChannelIsVerified       bool
 	ChannelIsVerifiedArtist bool
@@ -82,6 +86,15 @@ type videoInitialOutput struct {
 }
 
 var mediaUrlJsRegex = regexp.MustCompile(`src="(/s/player/[^\\/]+/player_ias[^\\/]+/en_US/base.js)"`)
+
+// humanize library doesnt seem to understand that "10K" and "10k" are the same thing
+func fixUnit(s string) string {
+	if strings.HasSuffix(s, "K") {
+		s = strings.TrimSuffix(s, "K") + "k"
+	}
+
+	return s
+}
 
 func NewVideoScraper(id string) (v VideoScraper, err error) {
 	rawUrl, err := url.Parse("https://www.youtube.com/watch")
@@ -176,27 +189,64 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 		}
 	}
 
-	date, wasLive := strings.CutPrefix(output.Date, "Streamed live on ")
-	date, isLive := strings.CutPrefix(date, "Started streaming on ")
+	dateText, premiered := strings.CutPrefix(output.Date, "Premiered ")
+	dateText, wasLive := strings.CutPrefix(dateText, "Streamed live on ")
+	dateText, isLive := strings.CutPrefix(dateText, "Started streaming on ")
+
+	var date time.Time
+	date, err = time.Parse(YoutubeVideoDateLayout, dateText)
+	if err != nil {
+		return
+	}
+
+	views, err := strconv.Atoi(strings.ReplaceAll(strings.TrimSuffix(output.Views, " views"), ",", ""))
+	if err != nil {
+		return
+	}
+
+	likes, unit, err := humanize.ParseSI(fixUnit(output.Likes))
+	if err != nil {
+		return
+	} else if unit != "" {
+		log.Printf("WARNING: possibly wrong number for likes: %f%s\n", likes, unit)
+	}
+
+	var comments float64
+	if output.CommentsCount != "" {
+		comments, unit, err = humanize.ParseSI(fixUnit(output.CommentsCount))
+		if err != nil {
+			return
+		} else if unit != "" {
+			log.Printf("WARNING: possibly wrong number for comments count: %f%s\n", comments, unit)
+		}
+	}
+
+	channelSubscribers, unit, err := humanize.ParseSI(fixUnit(strings.TrimSuffix(output.ChannelSubscribers, " subscribers")))
+	if err != nil {
+		return
+	} else if unit != "" {
+		log.Printf("WARNING: possibly wrong number for channel subscribers count: %f%s\n", comments, unit)
+	}
 
 	v.VideoInfo = FullVideo{
 		VideoID:                 id,
 		Title:                   output.Title,
 		Description:             output.Description,
-		Views:                   strings.TrimSuffix(output.Views, " views"),
+		Views:                   views,
 		IsLive:                  output.IsLive || isLive,
 		WasLive:                 wasLive,
 		Date:                    date,
-		Likes:                   output.Likes,
-		CommentsCount:           output.CommentsCount,
+		Likes:                   int(likes),
+		CommentsCount:           int(comments),
 		Category:                output.Category,
 		Username:                output.Username,
 		ChannelID:               output.ChannelID,
 		NewChannelID:            strings.TrimPrefix(output.RawNewChannelID, "/"),
-		ChannelSubscribers:      strings.TrimSuffix(output.ChannelSubscribers, " subscribers"),
+		ChannelSubscribers:      int(channelSubscribers),
 		ChannelIsVerified:       channelIsVerified,
 		ChannelIsVerifiedArtist: channelIsVerifiedArtist,
 		IsUnlisted:              videoIsUnlisted,
+		VideoPremiered:          premiered,
 	}
 
 	return

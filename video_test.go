@@ -3,12 +3,19 @@ package scraper
 import (
 	"net/http"
 	"testing"
+	"time"
 
 	assert "github.com/ayes-web/testingassert"
 )
 
 func TestLttVideo(t *testing.T) {
 	scraper, err := NewVideoScraper("FdbvrqC6lOY") // normal VideoInfo
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var date time.Time
+	date, err = time.Parse(YoutubeVideoDateLayout, "Jul 13, 2023")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -20,12 +27,12 @@ func TestLttVideo(t *testing.T) {
 	assert.Equals(video.ChannelID, "UCXuqSBlHAE6Xw-yeJA0Tunw")
 	assert.Equals(video.Username, "Linus Tech Tips")
 	assert.Equals(video.NewChannelID, "@LinusTechTips")
-	assert.NotEquals(video.Likes, "")
-	assert.Equals(video.ChannelSubscribers, "15.6M")
-	assert.NotEquals(video.Views, "")
+	assert.NotEquals(video.Likes, 0)
+	assert.Equals(video.ChannelSubscribers, 15600000)
+	assert.NotEquals(video.Views, 0)
 	assert.NotEquals(video.Title, "")
 	assert.NotEquals(video.Description, "", "description is empty")
-	assert.Equals(video.Date, "Jul 13, 2023")
+	assert.Equals(video.Date, date)
 	assert.Assert(!video.WasLive, "marked as was live")
 	assert.Assert(!video.IsLive, "marked as live")
 	assert.NotEquals(video.CommentsCount, "")
@@ -39,6 +46,12 @@ func TestPastLttLivestream(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	var date time.Time
+	date, err = time.Parse(YoutubeVideoDateLayout, "Jul 7, 2023")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	video := scraper.VideoInfo
 	assert.TestState = t
 	assert.HideSuccess = true
@@ -48,13 +61,13 @@ func TestPastLttLivestream(t *testing.T) {
 	assert.Equals(video.ChannelID, "UCXuqSBlHAE6Xw-yeJA0Tunw")
 	assert.Equals(video.Username, "Linus Tech Tips")
 	assert.Equals(video.NewChannelID, "@LinusTechTips")
-	assert.NotEquals(video.Likes, "")
-	assert.Equals(video.ChannelSubscribers, "15.6M")
-	assert.NotEquals(video.Views, "")
+	assert.NotEquals(video.Likes, 0)
+	assert.Equals(video.ChannelSubscribers, 15600000)
+	assert.NotEquals(video.Views, 0)
 	assert.NotEquals(video.Title, "")
 	assert.NotEquals(video.Description, "", "description is empty")
-	assert.Equals(video.Date, "Jul 7, 2023")
-	assert.NotEquals(video.CommentsCount, "")
+	assert.Equals(video.Date, date)
+	assert.NotEquals(video.CommentsCount, 0)
 	assert.Assert(video.ChannelIsVerified, "channel isnt verified")
 	assert.Assert(!video.ChannelIsVerifiedArtist, "channel shouldnt be an artist")
 }
@@ -72,9 +85,10 @@ func TestLttLivestream(t *testing.T) {
 	assert.Equals(video.ChannelID, "UCXuqSBlHAE6Xw-yeJA0Tunw")
 	assert.Equals(video.Username, "Linus Tech Tips")
 	assert.Equals(video.NewChannelID, "@LinusTechTips")
-	assert.NotEquals(video.Likes, "")
-	assert.Equals(video.ChannelSubscribers, "15.6M")
-	assert.NotEquals(video.Views, "")
+	assert.NotEquals(video.Likes, 0)
+	assert.Equals(video.ChannelSubscribers, 15600000)
+	assert.Equals(video.CommentsCount, 0)
+	assert.NotEquals(video.Views, 0)
 	assert.NotEquals(video.Title, "")
 	assert.NotEquals(video.Description, "", "description is empty")
 	assert.NotEquals(video.Date, "")
@@ -122,6 +136,12 @@ func TestUnlistedVideo(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	var date time.Time
+	date, err = time.Parse(YoutubeVideoDateLayout, "Apr 27, 2019")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	video := scraper.VideoInfo
 	assert.TestState = t
 	assert.HideSuccess = true
@@ -130,7 +150,7 @@ func TestUnlistedVideo(t *testing.T) {
 	assert.Equals(video.Username, "Coffeezilla")
 	assert.Equals(video.NewChannelID, "@Coffeezilla")
 	assert.Equals(video.Title, "Pewdiepie's Last Hope - Save a Swede By Going AFK")
-	assert.Equals(video.Date, "Apr 27, 2019")
+	assert.Equals(video.Date, date)
 	assert.Assert(video.ChannelIsVerified, "channel should be verified")
 	assert.Assert(!video.ChannelIsVerifiedArtist, "channel shouldnt be an artist")
 	assert.Assert(video.IsUnlisted, "should be unlisted")
