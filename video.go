@@ -54,8 +54,10 @@ type VideoInitialOutput struct {
 	CommentsCount      string `rjson:"contents.twoColumnWatchNextResults.results.results.contents[2].itemSectionRenderer.contents[0].commentsEntryPointHeaderRenderer.commentCount.simpleText"`
 	Category           string `rjson:"contents.twoColumnWatchNextResults.results.results.contents[1].videoSecondaryInfoRenderer.metadataRowContainer.metadataRowContainerRenderer.rows[0].richMetadataRowRenderer.contents[1].richMetadataRenderer.title.runs[0].text"`
 
-	CommentsTopToken    string `rjson:"engagementPanels[2].engagementPanelSectionListRenderer.header.engagementPanelTitleHeaderRenderer.menu.sortFilterSubMenuRenderer.subMenuItems[0].serviceEndpoint.continuationCommand.token"`
-	CommentsNewestToken string `rjson:"engagementPanels[2].engagementPanelSectionListRenderer.header.engagementPanelTitleHeaderRenderer.menu.sortFilterSubMenuRenderer.subMenuItems[1].serviceEndpoint.continuationCommand.token"`
+	Tokens []struct {
+		Title string `rjson:"title"`
+		Token string `rjson:"serviceEndpoint.continuationCommand.token"`
+	} `rjson:"engagementPanels[].engagementPanelSectionListRenderer.header.engagementPanelTitleHeaderRenderer.menu.sortFilterSubMenuRenderer.subMenuItems[0]"`
 }
 
 func NewVideoScraper(id string) (v VideoScraper, err error) {
@@ -83,13 +85,19 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 		return
 	}
 
-	v.commentsNewestToken = output.CommentsNewestToken
+	for _, token := range output.Tokens {
+		switch token.Title {
+		case "Top comments":
+			v.commentsTopToken = token.Token
+		case "Newest first":
+			v.commentsNewestToken = token.Token
+		}
+	}
+
 	v.commentsNewestContinueInputJson, err = continueInput{Continuation: v.commentsNewestToken}.FillGenericInfo().Construct()
 	if err != nil {
 		return
 	}
-
-	v.commentsTopToken = output.CommentsTopToken
 	v.commentsTopContinueInputJson, err = continueInput{Continuation: v.commentsTopToken}.FillGenericInfo().Construct()
 	if err != nil {
 		return
