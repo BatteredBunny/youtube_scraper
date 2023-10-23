@@ -14,12 +14,13 @@ import (
 )
 
 type searchVideoRenderer struct {
-	VideoID string `rjson:"videoId"`
-	Title   string `rjson:"title.runs[0].text"`
-	Date    string `rjson:"publishedTimeText.simpleText"`
-	Length  string `rjson:"lengthText.simpleText"`
-	Views   string `rjson:"viewCountText.simpleText"`
-	Viewers string `rjson:"viewCountText.runs[0].text"`
+	VideoID    string         `rjson:"videoId"`
+	Title      string         `rjson:"title.runs[0].text"`
+	Date       string         `rjson:"publishedTimeText.simpleText"`
+	Length     string         `rjson:"lengthText.simpleText"`
+	Views      string         `rjson:"viewCountText.simpleText"`
+	Viewers    string         `rjson:"viewCountText.runs[0].text"`
+	Thumbnails []YoutubeImage `rjson:"thumbnail.thumbnails"`
 
 	Badges      []string `rjson:"badges[].metadataBadgeRenderer.label"`        // example of badge "New", "CC", "4K",
 	OwnerBadges []string `rjson:"ownerBadges[].metadataBadgeRenderer.tooltip"` // example of owner badge "Verified" or "Official Artist Channel"
@@ -85,9 +86,10 @@ func (rawVideo searchVideoRenderer) ToVideo() (video SearchVideo, err error) {
 		Date:    rawVideo.Date,
 		Length:  rawVideo.Length,
 
-		Views:   views,
-		Viewers: viewers,
-		IsLive:  rawVideo.Date == "" || rawVideo.Length == "" || viewers > 0,
+		Views:      views,
+		Viewers:    viewers,
+		IsLive:     rawVideo.Date == "" || rawVideo.Length == "" || viewers > 0,
+		Thumbnails: rawVideo.Thumbnails,
 
 		Username:             rawVideo.Username,
 		ChannelID:            rawVideo.ChannelID,
@@ -107,6 +109,7 @@ type SearchVideo struct {
 	Length         string // e.g "15:54", will be empty when its a livestream
 	Views, Viewers int
 	IsLive         bool
+	Thumbnails     []YoutubeImage
 
 	HasNewBadge, HasCCBadge, Has4kBadge bool
 	IsVerified, IsVerifiedArtist        bool
