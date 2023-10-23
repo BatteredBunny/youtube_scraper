@@ -6,6 +6,7 @@ Youtube metadata scraping library for golang
 - Fetch channel's videos and streams tab
 - Fetch homepage videos
 - Fetch video metadata
+- Fetch video sidebar recommendations
 - Fetch comments and its reply threads
 
 ## Example
