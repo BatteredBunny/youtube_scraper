@@ -1,20 +1,17 @@
-package scraper
+package examples
 
 import (
 	"encoding/json"
+	"git.catnip.ee/miisu/youtube_scraper"
 	"testing"
 )
 
 func TestChannelVideosScraper(t *testing.T) {
-	scraper := NewChannelScraper("@TomScottGo")
+	c := scraper.NewChannelScraper("@TomScottGo")
 
-	var (
-		videos         []Video
-		err            error
-		printedChannel bool
-	)
+	var printedChannel bool
 	for {
-		videos, err = scraper.NextVideosPage()
+		videos, err := c.NextVideosPage()
 		if err != nil {
 			t.Fatal(err)
 		} else if len(videos) == 0 {
@@ -22,7 +19,7 @@ func TestChannelVideosScraper(t *testing.T) {
 		}
 
 		if !printedChannel {
-			if available, channel := scraper.GetChannelInfo(); available {
+			if available, channel := c.GetChannelInfo(); available {
 				bs, err := json.MarshalIndent(channel, "", "	")
 				if err != nil {
 					t.Fatal(err)
@@ -40,15 +37,11 @@ func TestChannelVideosScraper(t *testing.T) {
 }
 
 func TestChannelStreamsScraper(t *testing.T) {
-	scraper := NewChannelScraper("@LinusTechTips")
+	c := scraper.NewChannelScraper("@LinusTechTips")
 
-	var (
-		videos         []Video
-		err            error
-		printedChannel bool
-	)
+	var printedChannel bool
 	for {
-		videos, err = scraper.NextStreamsPage()
+		videos, err := c.NextStreamsPage()
 		if err != nil {
 			t.Fatal(err)
 		} else if len(videos) == 0 {
@@ -56,7 +49,7 @@ func TestChannelStreamsScraper(t *testing.T) {
 		}
 
 		if !printedChannel {
-			if available, channel := scraper.GetChannelInfo(); available {
+			if available, channel := c.GetChannelInfo(); available {
 				bs, err := json.MarshalIndent(channel, "", "	")
 				if err != nil {
 					t.Fatal(err)

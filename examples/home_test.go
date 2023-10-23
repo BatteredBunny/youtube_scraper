@@ -1,12 +1,13 @@
-package scraper
+package examples
 
 import (
 	"encoding/json"
+	"git.catnip.ee/miisu/youtube_scraper"
 	"testing"
 )
 
 func TestHomeVideosScraper(t *testing.T) {
-	h := NewHomeVideosScraper()
+	h := scraper.NewHomeVideosScraper()
 
 	// Gets 5 pages of home page feed
 	for i := 0; i <= 5; i++ {

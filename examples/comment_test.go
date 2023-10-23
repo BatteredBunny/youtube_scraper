@@ -1,16 +1,19 @@
-package scraper
+package examples
 
-import "testing"
+import (
+	"git.catnip.ee/miisu/youtube_scraper"
+	"testing"
+)
 
 func TestVideoCommentNewestScraper(t *testing.T) {
-	scraper, err := NewVideoScraper("_jgcDuRbM_w")
+	v, err := scraper.NewVideoScraper("_jgcDuRbM_w")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	var comments []Comment
+	var comments []scraper.Comment
 	for {
-		comments, err = scraper.NextNewestCommentsPage()
+		comments, err = v.NextNewestCommentsPage()
 		if err != nil {
 			t.Fatal(err)
 		} else if len(comments) == 0 {
@@ -23,13 +26,13 @@ func TestVideoCommentNewestScraper(t *testing.T) {
 	}
 }
 func TestVideoCommentTopScraper(t *testing.T) {
-	scraper, err := NewVideoScraper("FdbvrqC6lOY")
+	v, err := scraper.NewVideoScraper("FdbvrqC6lOY")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	var comments []Comment
-	comments, err = scraper.NextTopCommentsPage()
+	var comments []scraper.Comment
+	comments, err = v.NextTopCommentsPage()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,30 +43,30 @@ func TestVideoCommentTopScraper(t *testing.T) {
 }
 
 func TestSubcommentSection(t *testing.T) {
-	scraper, err := NewVideoScraper("FdbvrqC6lOY")
+	v, err := scraper.NewVideoScraper("FdbvrqC6lOY")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	var comments []Comment
-	comments, err = scraper.NextTopCommentsPage()
+	var comments []scraper.Comment
+	comments, err = v.NextTopCommentsPage()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	for _, comment := range comments {
 		if comment.HasSubComments() {
-			var subcomments []Comment
+			var subComments []scraper.Comment
 			for {
-				subcomments, err = comment.NextSubCommentPage()
+				subComments, err = comment.NextSubCommentPage()
 				if err != nil {
 					t.Fatal(err)
-				} else if len(subcomments) == 0 {
+				} else if len(subComments) == 0 {
 					break
 				}
 
-				for _, subcomment := range subcomments {
-					t.Log(subcomment.Content)
+				for _, subComment := range subComments {
+					t.Log(subComment.Content)
 				}
 			}
 			break

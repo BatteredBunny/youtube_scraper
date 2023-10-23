@@ -9,8 +9,8 @@ import (
 )
 
 type VideoScraper struct {
-	VideoInfo            FullVideo
-	InitialSidebarVideos []SidebarVideo
+	VideoInfo             FullVideo
+	InitialSidebarEntries []SidebarEntry
 
 	url string
 
@@ -64,8 +64,8 @@ type videoInitialOutput struct {
 		Token string `rjson:"serviceEndpoint.continuationCommand.token"`
 	} `rjson:"engagementPanels[].engagementPanelSectionListRenderer.header.engagementPanelTitleHeaderRenderer.menu.sortFilterSubMenuRenderer.subMenuItems[0]"`
 
-	SidebarVideos []rawSidebarVideo `rjson:"contents.twoColumnWatchNextResults.secondaryResults.secondaryResults.results"`
-	SidebarToken  string            `rjson:"contents.twoColumnWatchNextResults.secondaryResults.secondaryResults.results[-].continuationItemRenderer.button.buttonRenderer.command.continuationCommand.token"`
+	SidebarEntries []rawSidebarEntry `rjson:"contents.twoColumnWatchNextResults.secondaryResults.secondaryResults.results"`
+	SidebarToken   string            `rjson:"contents.twoColumnWatchNextResults.secondaryResults.secondaryResults.results[-].continuationItemRenderer.button.buttonRenderer.command.continuationCommand.token"`
 }
 
 func NewVideoScraper(id string) (v VideoScraper, err error) {
@@ -114,12 +114,12 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 		return
 	}
 
-	for _, sidebarVideo := range output.SidebarVideos {
-		if sidebarVideo.VideoID == "" {
+	for _, sidebarEntry := range output.SidebarEntries {
+		if sidebarEntry.VideoID == "" && sidebarEntry.PlaylistID == "" && sidebarEntry.RadioPlaylistID == "" {
 			continue
 		}
 
-		v.InitialSidebarVideos = append(v.InitialSidebarVideos, sidebarVideo.ToSidebarVideo())
+		v.InitialSidebarEntries = append(v.InitialSidebarEntries, sidebarEntry.ToSidebarEntry())
 	}
 
 	date, wasLive := strings.CutPrefix(output.Date, "Streamed live on ")
