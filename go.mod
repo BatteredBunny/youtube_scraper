@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/PuerkitoBio/goquery v1.8.1
-	github.com/ayes-web/rjson v0.1.13
+	github.com/ayes-web/rjson v0.1.15
 	github.com/ayes-web/testingassert v0.3.1
 )
 

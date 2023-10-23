@@ -26,7 +26,8 @@ func extractInitialDataBytes(body []byte) (rawJson string, err error) {
 }
 
 func extractInitialData(url string) (rawJson string, err error) {
-	resp, err := http.Get(url)
+	var resp *http.Response
+	resp, err = http.Get(url)
 	if err != nil {
 		return
 	}
@@ -49,6 +50,6 @@ func (ci continueInput) FillGenericInfo() continueInput {
 	return ci
 }
 
-func (ci continueInput) Construct() (continueInputJson []byte, err error) {
+func (ci continueInput) Construct() ([]byte, error) {
 	return json.Marshal(ci)
 }

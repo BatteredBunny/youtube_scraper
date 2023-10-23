@@ -250,6 +250,7 @@ type decryptFunc struct {
 }
 
 // TODO: fix & cleanup
+// TODO: add caching
 func FetchDecryptFunction(mediaUrlJs string) (decryptFunctions []decryptFunc, err error) {
 	var resp *http.Response
 	resp, err = http.Get("https://www.youtube.com" + mediaUrlJs)
