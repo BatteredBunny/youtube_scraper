@@ -6,8 +6,6 @@ import (
 	"io"
 	"net/http"
 	"strings"
-
-	"github.com/PuerkitoBio/goquery"
 )
 
 type Video struct {
@@ -54,6 +52,7 @@ type Video struct {
 	*/
 	Date string `json:"Date"`
 
+	Username     string `json:"Username"`
 	ChannelID    string `json:"ChannelID"`
 	NewChannelID string `json:"NewChannelID"` // @username
 }
@@ -97,30 +96,20 @@ func (c *ChannelVideosScraper) NextPage() (videos []Video, err error) {
 	var resp *http.Response
 
 	if !c.InitialComplete {
-		resp, err = http.Get(c.url)
+		var (
+			a       initialData
+			rawjson string
+		)
+		rawjson, err = ExtractInitialData(c.url)
 		if err != nil {
 			return
 		}
-
-		var doc *goquery.Document
-		doc, err = goquery.NewDocumentFromReader(resp.Body)
-		if err != nil {
-			return
-		}
-
-		var a accountScrapeInitial
-		doc.Find("script").Each(func(i int, s *goquery.Selection) {
-			if cut, valid := strings.CutPrefix(s.Text(), "var ytInitialData = "); valid {
-				j, _ := strings.CutSuffix(cut, ";")
-				json.Unmarshal([]byte(j), &a)
-			}
-		})
+		json.Unmarshal([]byte(rawjson), &a)
 
 		for _, tab := range a.Contents.TwoColumnBrowseResultsRenderer.Tabs {
 			if strings.HasSuffix(tab.TabRenderer.Endpoint.CommandMetadata.WebCommandMetadata.Url, "/videos") {
 				for _, video := range tab.TabRenderer.Content.RichGridRenderer.Contents {
 					r := video.RichItemRenderer.Content.VideoRenderer
-
 					if r.VideoId == "" {
 						c.ContinueInputJson, err = constructContinue(video.ContinuationItemRenderer.ContinuationEndpoint.ContinuationCommand.Token)
 						if err != nil {
@@ -162,21 +151,20 @@ func (c *ChannelVideosScraper) NextPage() (videos []Video, err error) {
 			return
 		}
 
-		var output accountScrapeContinueOutput
+		var output ContinueOutput
 		if err = json.Unmarshal(body, &output); err != nil {
 			return
 		}
 
 		if len(output.OnResponseReceivedActions) > 0 {
 			for _, rawVideo := range output.OnResponseReceivedActions[0].AppendContinuationItemsAction.ContinuationItems {
-				if rawVideo.RichItemRenderer.TrackingParams == "" {
+				r := rawVideo.RichItemRenderer.Content.VideoRenderer
+				if r.VideoId == "" {
 					c.ContinueInputJson, err = constructContinue(rawVideo.ContinuationItemRenderer.ContinuationEndpoint.ContinuationCommand.Token)
 					if err != nil {
 						return
 					}
 				} else {
-					r := rawVideo.RichItemRenderer.Content.VideoRenderer
-
 					videos = append(videos, Video{
 						VideoID:      r.VideoId,
 						Title:        r.Title.Runs[0].Text,
