@@ -186,12 +186,20 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 
 	dateText, premiered := strings.CutPrefix(output.Date, "Premiered ")
 	dateText, wasLive := strings.CutPrefix(dateText, "Streamed live on ")
+	dateText, wasRecentlyLive := strings.CutPrefix(dateText, "Streamed live ")
 	dateText, isLive := strings.CutPrefix(dateText, "Started streaming on ")
+	dateText, startedStreamingRecently := strings.CutPrefix(dateText, "Started streaming ")
 
 	var date time.Time
-	date, err = time.Parse(YoutubeVideoDateLayout, dateText)
-	if err != nil {
-		return
+	if wasRecentlyLive || startedStreamingRecently {
+		fmt.Println(wasRecentlyLive, startedStreamingRecently)
+		date = time.Now()
+		log.Println("WARNING: stream/premier is under 24h old, the date is not accurate")
+	} else {
+		date, err = time.Parse(YoutubeVideoDateLayout, dateText)
+		if err != nil {
+			return
+		}
 	}
 
 	var views float64
