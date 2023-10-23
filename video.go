@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -195,7 +194,8 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 		return
 	}
 
-	views, err := strconv.Atoi(strings.ReplaceAll(strings.TrimSuffix(output.Views, " views"), ",", ""))
+	var views float64
+	views, err = ParseViews(output.Views)
 	if err != nil {
 		return
 	}
@@ -228,7 +228,7 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 		VideoID:                 id,
 		Title:                   output.Title,
 		Description:             output.Description,
-		Views:                   views,
+		Views:                   int(views),
 		IsLive:                  output.IsLive || isLive,
 		WasLive:                 wasLive,
 		Date:                    date,

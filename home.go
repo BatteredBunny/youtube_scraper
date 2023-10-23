@@ -89,12 +89,9 @@ func (video homeVideo) ToVideo() (v Video, err error) {
 
 	date, wasLive := strings.CutPrefix(video.Date, "Streamed ")
 
-	var views int
-	if video.Views != "" && video.Views != "No views" {
-		views, err = strconv.Atoi(FixUnit(strings.ReplaceAll(strings.TrimSuffix(video.Views, " views"), ",", "")))
-		if err != nil {
-			return
-		}
+	views, err := ParseViews(video.Views)
+	if err != nil {
+		return
 	}
 
 	var viewers int
@@ -109,7 +106,7 @@ func (video homeVideo) ToVideo() (v Video, err error) {
 		VideoID:                video.VideoID,
 		Title:                  video.Title,
 		Length:                 video.Length,
-		Views:                  views,
+		Views:                  int(views),
 		Viewers:                viewers,
 		Date:                   date,
 		Username:               video.Username,

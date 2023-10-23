@@ -45,12 +45,10 @@ func (rawVideo searchVideoRenderer) ToVideo() (video SearchVideo, err error) {
 		}
 	}
 
-	var views int
-	if rawVideo.Views != "" && rawVideo.Views != "No views" {
-		views, err = strconv.Atoi(strings.ReplaceAll(strings.TrimSuffix(rawVideo.Views, " views"), ",", ""))
-		if err != nil {
-			return
-		}
+	var views float64
+	views, err = scraper.ParseViews(rawVideo.Views)
+	if err != nil {
+		return
 	}
 
 	video = SearchVideo{
@@ -59,7 +57,7 @@ func (rawVideo searchVideoRenderer) ToVideo() (video SearchVideo, err error) {
 		Date:    rawVideo.Date,
 		Length:  rawVideo.Length,
 
-		Views:         views,
+		Views:         int(views),
 		Viewers:       viewers,
 		IsLive:        rawVideo.Date == "" || rawVideo.Length == "" || viewers > 0,
 		Thumbnails:    rawVideo.Thumbnails,

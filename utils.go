@@ -2,7 +2,10 @@ package scraper
 
 import (
 	"fmt"
+	"log"
 	"strings"
+
+	"github.com/dustin/go-humanize"
 )
 
 func reverse(s string) string {
@@ -31,4 +34,24 @@ func FixUnit(s string) string {
 	}
 
 	return s
+}
+
+// Parses views from youtube outputs
+func ParseViews(rawViews string) (views float64, err error) {
+	if rawViews != "" && rawViews != "No views" {
+		rawViews = strings.TrimSuffix(rawViews, " views")
+		rawViews = strings.TrimSuffix(rawViews, " view")
+		rawViews = strings.ReplaceAll(rawViews, ",", "")
+		rawViews = FixUnit(rawViews)
+
+		var unit string
+		views, unit, err = humanize.ParseSI(rawViews)
+		if err != nil {
+			return
+		} else if unit != "" {
+			log.Printf("WARNING: possibly wrong number for views: %f%s\n", views, unit)
+		}
+	}
+
+	return
 }

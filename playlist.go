@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/ayes-web/rjson"
-	"github.com/dustin/go-humanize"
 )
 
 type PlaylistScraper struct {
@@ -65,11 +64,9 @@ type playlistVideoRenderer struct {
 }
 
 func (p *playlistVideoRenderer) ToPlaylistVideo() (v PlaylistVideo, err error) {
-	views, unit, err := humanize.ParseSI(FixUnit(strings.TrimSuffix(p.Views, " views")))
+	views, err := ParseViews(p.Views)
 	if err != nil {
 		return
-	} else if unit != "" {
-		log.Printf("WARNING: possibly wrong number for views: %f%s\n", views, unit)
 	}
 
 	v = PlaylistVideo{
@@ -181,7 +178,10 @@ func (p *PlaylistScraper) NextPage() (videos []PlaylistVideo, err error) {
 
 		p.state.ChannelName = strings.TrimPrefix(p.state.ChannelName, "by ")
 		p.state.NewChannelID = strings.TrimPrefix(p.state.NewChannelID, "/")
+
 		p.state.Views = strings.TrimSuffix(p.state.Views, " views")
+		p.state.Views = strings.TrimSuffix(p.state.Views, " view")
+		p.state.Views = strings.ReplaceAll(p.state.Views, ",", "")
 
 		p.playlistContinueToken = p.state.ContinuationToken
 		p.playlistContinueInput, err = ContinueInput{Continuation: p.playlistContinueToken}.FillGenericInfo().Construct()

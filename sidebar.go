@@ -133,12 +133,10 @@ func (sidebarEntry rawSidebarEntry) ToSidebarEntry() (s SidebarEntry, err error)
 
 		date, wasLive := strings.CutPrefix(sidebarEntry.Video.Date, "Streamed ")
 
-		var views int
-		if sidebarEntry.Video.Views != "" && sidebarEntry.Video.Views != "No views" {
-			views, err = strconv.Atoi(strings.ReplaceAll(strings.TrimSuffix(sidebarEntry.Video.Views, " views"), ",", ""))
-			if err != nil {
-				return
-			}
+		var views float64
+		views, err = ParseViews(sidebarEntry.Video.Views)
+		if err != nil {
+			return
 		}
 
 		var viewers int
@@ -158,7 +156,7 @@ func (sidebarEntry rawSidebarEntry) ToSidebarEntry() (s SidebarEntry, err error)
 				ChannelID:       sidebarEntry.Video.ChannelID,
 				RawNewChannelID: strings.TrimPrefix(sidebarEntry.Video.RawNewChannelID, "/"),
 				Date:            date,
-				Views:           views,
+				Views:           int(views),
 				Viewers:         viewers,
 				Length:          sidebarEntry.Video.Length,
 
