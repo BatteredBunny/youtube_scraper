@@ -77,13 +77,12 @@ type homeVideo struct {
 }
 
 func (video homeVideo) ToVideo() (v Video, err error) {
-	var authorIsVerified bool
-	var authorIsVerifiedArtist bool
+	var authorIsVerified, authorIsVerifiedArtist bool
 	for _, ownerBadge := range video.OwnerBadges {
 		switch ownerBadge {
-		case BadgeChannelVerified:
+		case ChannelBadgeVerified:
 			authorIsVerified = true
-		case BadgeChannelVerifiedArtistChannel:
+		case ChannelBadgeVerifiedArtistChannel:
 			authorIsVerifiedArtist = true
 		}
 	}

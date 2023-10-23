@@ -36,12 +36,12 @@ type SidebarVideo struct {
 	Length          string
 	Thumbnails      []YoutubeImage
 
-	AuthorIsVerified       bool
-	AuthorIsVerifiedArtist bool
-	IsNew                  bool
-	IsLive                 bool
-	WasLive                bool
+	AuthorIsVerified, AuthorIsVerifiedArtist bool
+	HasNewBadge, HasCCBadge, Has4kBadge      bool
+
+	IsLive, WasLive bool
 }
+
 type SidebarPlaylist struct {
 	PlaylistID string
 	Title      string
@@ -109,21 +109,24 @@ type rawSidebarEntry struct {
 
 func (sidebarEntry rawSidebarEntry) ToSidebarEntry() (s SidebarEntry, err error) {
 	if sidebarEntry.Video.VideoID != "" {
-		var isNew bool
+		var hasNewBadge, hasCCBadge, has4kBadge bool
 		for _, badge := range sidebarEntry.Video.Badges {
 			switch badge {
 			case VideoBadgeNew:
-				isNew = true
+				hasNewBadge = true
+			case VideoBadgeCC:
+				hasCCBadge = true
+			case VideoBadge4k:
+				has4kBadge = true
 			}
 		}
 
-		var authorIsVerifiedArtist bool
-		var authorIsVerified bool
+		var authorIsVerifiedArtist, authorIsVerified bool
 		for _, ownerBadge := range sidebarEntry.Video.OwnerBadges {
 			switch ownerBadge {
-			case BadgeChannelVerified:
+			case ChannelBadgeVerified:
 				authorIsVerified = true
-			case BadgeChannelVerifiedArtistChannel:
+			case ChannelBadgeVerifiedArtistChannel:
 				authorIsVerifiedArtist = true
 			}
 		}
@@ -149,21 +152,22 @@ func (sidebarEntry rawSidebarEntry) ToSidebarEntry() (s SidebarEntry, err error)
 		s = SidebarEntry{
 			Type: SidebarEntryVideo,
 			Entry: SidebarVideo{
-				VideoID:                sidebarEntry.Video.VideoID,
-				Title:                  sidebarEntry.Video.Title,
-				Username:               sidebarEntry.Video.Username,
-				ChannelID:              sidebarEntry.Video.ChannelID,
-				RawNewChannelID:        strings.TrimPrefix(sidebarEntry.Video.RawNewChannelID, "/"),
-				Date:                   date,
-				Views:                  views,
-				Viewers:                viewers,
-				Length:                 sidebarEntry.Video.Length,
-				AuthorIsVerified:       authorIsVerified,
-				AuthorIsVerifiedArtist: authorIsVerifiedArtist,
-				IsNew:                  isNew,
-				IsLive:                 len(sidebarEntry.Video.Date) == 0,
-				WasLive:                wasLive,
-				Thumbnails:             sidebarEntry.Video.Thumbnails,
+				VideoID:         sidebarEntry.Video.VideoID,
+				Title:           sidebarEntry.Video.Title,
+				Username:        sidebarEntry.Video.Username,
+				ChannelID:       sidebarEntry.Video.ChannelID,
+				RawNewChannelID: strings.TrimPrefix(sidebarEntry.Video.RawNewChannelID, "/"),
+				Date:            date,
+				Views:           views,
+				Viewers:         viewers,
+				Length:          sidebarEntry.Video.Length,
+
+				AuthorIsVerified: authorIsVerified, AuthorIsVerifiedArtist: authorIsVerifiedArtist,
+				HasNewBadge: hasNewBadge, HasCCBadge: hasCCBadge, Has4kBadge: has4kBadge,
+
+				IsLive:     len(sidebarEntry.Video.Date) == 0,
+				WasLive:    wasLive,
+				Thumbnails: sidebarEntry.Video.Thumbnails,
 			},
 		}
 	} else if sidebarEntry.Playlist.PlaylistID != "" {

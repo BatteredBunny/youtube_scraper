@@ -24,12 +24,12 @@ type VideoScraper struct {
 	mediaUrlJs string
 	url        string
 
-	commentsNewestPassedInitial bool
-	commentsNewestContinueInput continueInput
+	commentsNewestPassedInitial     bool
+	commentsNewestContinueInput     continueInput
 	commentsNewestContinueInputJson []byte
 
-	commentsTopPassedInitial bool
-	commentsTopContinueInput continueInput
+	commentsTopPassedInitial     bool
+	commentsTopContinueInput     continueInput
 	commentsTopContinueInputJson []byte
 
 	sidebarContinueInput     continueInput
@@ -137,9 +137,9 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 	var channelIsVerifiedArtist bool
 	for _, badge := range output.OwnerBadges {
 		switch badge {
-		case BadgeChannelVerified:
+		case ChannelBadgeVerified:
 			channelIsVerified = true
-		case BadgeChannelVerifiedArtistChannel:
+		case ChannelBadgeVerifiedArtistChannel:
 			channelIsVerifiedArtist = true
 		}
 	}
