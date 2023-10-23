@@ -16,12 +16,9 @@ import (
 type HomeVideosScraper struct {
 	url string
 
-	ChannelID    string
-	NewChannelID string // @username
-
-	InitialComplete   bool
-	ContinueInput     continueInput
-	ContinueInputJson []byte
+	initialComplete   bool
+	continueInput     continueInput
+	continueInputJson []byte
 }
 
 func NewHomeVideosScraper() (h HomeVideosScraper) {
@@ -134,14 +131,14 @@ func (h *HomeVideosScraper) runInitial() (videos []Video, err error) {
 		return
 	}
 
-	h.ContinueInput = continueInput{
+	h.continueInput = continueInput{
 		BrowseId:            "FEwhat_to_watch",
 		InlineSettingStatus: "INLINE_SETTING_STATUS_ON",
 		Continuation:        output.ContinuationToken,
 	}.FillGenericInfo()
 
-	h.ContinueInput.Context.Client.VisitorData = output.VisitorData
-	h.ContinueInputJson, err = h.ContinueInput.Construct()
+	h.continueInput.Context.Client.VisitorData = output.VisitorData
+	h.continueInputJson, err = h.continueInput.Construct()
 	if err != nil {
 		return
 	}
@@ -167,7 +164,7 @@ func (h *HomeVideosScraper) runInitial() (videos []Video, err error) {
 		}
 	}
 
-	h.InitialComplete = true
+	h.initialComplete = true
 	return
 }
 
@@ -177,15 +174,15 @@ type homeContinueOutput struct {
 }
 
 func (h *HomeVideosScraper) NextPage() (videos []Video, err error) {
-	if !h.InitialComplete {
+	if !h.initialComplete {
 		return h.runInitial()
 	} else {
 		var resp *http.Response
-		resp, err = http.Post("https://www.youtube.com/youtubei/v1/browse", "application/json", bytes.NewReader(h.ContinueInputJson))
+		resp, err = http.Post("https://www.youtube.com/youtubei/v1/browse", "application/json", bytes.NewReader(h.continueInputJson))
 		if err != nil {
 			return
 		}
-		h.ContinueInputJson = []byte{}
+		h.continueInputJson = []byte{}
 
 		var body []byte
 		body, err = io.ReadAll(resp.Body)
@@ -193,7 +190,7 @@ func (h *HomeVideosScraper) NextPage() (videos []Video, err error) {
 			return
 		}
 
-		debugFileOutput(body, "home_videos_%s.json", h.ContinueInput.Continuation)
+		debugFileOutput(body, "home_videos_%s.json", h.continueInput.Continuation)
 
 		var output homeContinueOutput
 		if err = rjson.Unmarshal(body, &output); err != nil {
@@ -206,8 +203,8 @@ func (h *HomeVideosScraper) NextPage() (videos []Video, err error) {
 			return
 		}
 
-		h.ContinueInput.Continuation = output.ContinueToken
-		h.ContinueInputJson, err = json.Marshal(h.ContinueInput)
+		h.continueInput.Continuation = output.ContinueToken
+		h.continueInputJson, err = json.Marshal(h.continueInput)
 		if err != nil {
 			return
 		}
