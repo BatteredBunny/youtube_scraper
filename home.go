@@ -21,15 +21,15 @@ type HomeVideosScraper struct {
 	continueInputJson []byte
 }
 
-func HomeVideosScraperFromToken(token string, visitorData string) (h HomeVideosScraper, err error) {
+func HomeVideosScraperFromToken(export HomeVideosExport) (h HomeVideosScraper, err error) {
 	h.url = "https://www.youtube.com/?hl=en"
 	h.continueInput = continueInput{
 		BrowseId:            "FEwhat_to_watch",
 		InlineSettingStatus: "INLINE_SETTING_STATUS_ON",
-		Continuation:        token,
+		Continuation:        export.ContinueToken,
 	}.FillGenericInfo()
 
-	h.continueInput.Context.Client.VisitorData = visitorData
+	h.continueInput.Context.Client.VisitorData = export.VisitorData
 	h.continueInputJson, err = h.continueInput.Construct()
 	if err != nil {
 		return
@@ -44,8 +44,16 @@ func NewHomeVideosScraper() (h HomeVideosScraper) {
 	return
 }
 
-func (h *HomeVideosScraper) Export() (ContinueToken string, VisitorData string) {
-	return h.continueInput.Continuation, h.continueInput.Context.Client.VisitorData
+type HomeVideosExport struct {
+	ContinueToken string
+	VisitorData   string
+}
+
+func (h *HomeVideosScraper) Export() HomeVideosExport {
+	return HomeVideosExport{
+		ContinueToken: h.continueInput.Continuation,
+		VisitorData:   h.continueInput.Context.Client.VisitorData,
+	}
 }
 
 // home has a modified version of videoRenderer with few additional lines of info, maybe best to merge them fully?
