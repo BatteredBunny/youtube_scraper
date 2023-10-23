@@ -282,7 +282,7 @@ func (c *ChannelScraper) NextVideosPage() (videos []Video, err error) {
 
 			var output channelVideosInitialOutput
 			if err = rjson.Unmarshal(rawJson, &output); err != nil {
-				if errors.Unwrap(err) == rjson.ErrCantFindField {
+				if errors.Is(err, rjson.ErrCantFindField) {
 					if Debug {
 						log.Println("WARNING:", err)
 					}
@@ -303,7 +303,7 @@ func (c *ChannelScraper) NextVideosPage() (videos []Video, err error) {
 
 			var output channelContinueOutput
 			if err = rjson.Unmarshal(rawJson, &output); err != nil {
-				if errors.Unwrap(err) == rjson.ErrCantFindField {
+				if errors.Is(err, rjson.ErrCantFindField) {
 					err = nil
 				}
 				return
@@ -324,7 +324,7 @@ func (c *ChannelScraper) NextStreamsPage() (videos []Video, err error) {
 
 			var output channelStreamsInitialOutput
 			if err = rjson.Unmarshal(rawJson, &output); err != nil {
-				if errors.Unwrap(err) == rjson.ErrCantFindField {
+				if errors.Is(err, rjson.ErrCantFindField) {
 					if Debug {
 						log.Println("WARNING:", err)
 					}
@@ -362,7 +362,7 @@ func (c *ChannelScraper) NextStreamsPage() (videos []Video, err error) {
 
 				var output channelContinueOutput
 				if err = rjson.Unmarshal(rawJson, &output); err != nil {
-					if errors.Unwrap(err) == rjson.ErrCantFindField {
+					if errors.Is(errors.Unwrap(err), rjson.ErrCantFindField) {
 						err = nil
 					}
 					return

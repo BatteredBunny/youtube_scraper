@@ -105,7 +105,7 @@ func (h *HomeVideosScraper) runInitial() (videos []Video, err error) {
 
 	var output homeInitialOutput
 	if err = rjson.Unmarshal([]byte(rawJson), &output); err != nil {
-		if errors.Unwrap(err) == rjson.ErrCantFindField {
+		if errors.Is(err, rjson.ErrCantFindField) {
 			if Debug {
 				log.Println("WARNING:", err)
 			}
@@ -173,7 +173,7 @@ func (h *HomeVideosScraper) NextPage() (videos []Video, err error) {
 
 		var output homeContinueOutput
 		if err = rjson.Unmarshal(body, &output); err != nil {
-			if errors.Unwrap(err) == rjson.ErrCantFindField {
+			if errors.Is(err, rjson.ErrCantFindField) {
 				if Debug {
 					log.Println("WARNING:", err)
 				}

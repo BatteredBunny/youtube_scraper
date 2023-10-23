@@ -66,7 +66,7 @@ func (c *Comment) NextSubCommentPage() (comments []Comment, err error) {
 
 	var output subCommentsContinueOutput
 	if err = rjson.Unmarshal(body, &output); err != nil {
-		if errors.Unwrap(err) == rjson.ErrCantFindField {
+		if errors.Is(err, rjson.ErrCantFindField) {
 			if Debug {
 				log.Println("WARNING:", err)
 			}
@@ -187,7 +187,7 @@ func (v *VideoScraper) NextNewestCommentsPage() (comments []Comment, err error) 
 
 			var output commentsContinueOutputInitial
 			if err = rjson.Unmarshal(rawJson, &output); err != nil {
-				if errors.Unwrap(err) == rjson.ErrCantFindField {
+				if errors.Is(err, rjson.ErrCantFindField) {
 					if Debug {
 						log.Println("WARNING:", err)
 					}
@@ -204,7 +204,7 @@ func (v *VideoScraper) NextNewestCommentsPage() (comments []Comment, err error) 
 
 			var output commentsContinueOutput
 			if err = rjson.Unmarshal(rawJson, &output); err != nil {
-				if errors.Unwrap(err) == rjson.ErrCantFindField {
+				if errors.Is(err, errors.Unwrap(err)) {
 					if Debug {
 						log.Println("WARNING:", err)
 					}
@@ -229,7 +229,7 @@ func (v *VideoScraper) NextTopCommentsPage() (comments []Comment, err error) {
 		if !v.commentsTopPassedInitial {
 			var output commentsContinueOutputInitial
 			if err = rjson.Unmarshal(rawJson, &output); err != nil {
-				if errors.Unwrap(err) == rjson.ErrCantFindField {
+				if errors.Is(err, errors.Unwrap(err)) {
 					if Debug {
 						log.Println("WARNING:", err)
 					}
@@ -244,7 +244,7 @@ func (v *VideoScraper) NextTopCommentsPage() (comments []Comment, err error) {
 		} else {
 			var output commentsContinueOutput
 			if err = rjson.Unmarshal(rawJson, &output); err != nil {
-				if errors.Unwrap(err) == rjson.ErrCantFindField {
+				if errors.Is(err, errors.Unwrap(err)) {
 					if Debug {
 						log.Println("WARNING:", err)
 					}

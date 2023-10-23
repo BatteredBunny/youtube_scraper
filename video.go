@@ -100,7 +100,7 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 		return
 	}
 
-	debugFileOutput([]byte(body), "video_initial.html")
+	debugFileOutput(body, "video_initial.html")
 
 	v.mediaUrlJs = string(mediaUrlJsRegex.FindSubmatch(body)[1])
 
@@ -114,7 +114,7 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 
 	var output videoInitialOutput
 	if err = rjson.Unmarshal([]byte(rawJson), &output); err != nil {
-		if errors.Unwrap(err) == rjson.ErrCantFindField {
+		if errors.Is(err, rjson.ErrCantFindField) {
 			if Debug {
 				log.Println("WARNING:", err)
 			}
