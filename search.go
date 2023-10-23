@@ -136,7 +136,7 @@ type searchInitialOutput struct {
 	ContinueToken string                `rjson:"contents.twoColumnSearchResultsRenderer.primaryContents.sectionListRenderer.contents[1].continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
 }
 
-// TODO: add option to use it
+// TODO: add option to use filters
 type searchContinueOutput struct {
 	FilterGroups []struct {
 		Title   string `rjson:"title.simpleText"`
@@ -151,15 +151,42 @@ type searchContinueOutput struct {
 	ContinueToken string                `rjson:"onResponseReceivedCommands[0]appendContinuationItemsAction.continuationItems[1]continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
 }
 
-type searchScraper struct {
-	url         string
-	initialDone bool
+type SearchScraper struct {
+	url             string
+	initialComplete bool
 
 	searchContinueInput     continueInput
 	searchContinueInputJson []byte
 }
 
-func NewSearchScraper(query string) (s searchScraper, err error) {
+type SearchScraperExport struct {
+	Url             string
+	InitialComplete bool
+	Token           string
+}
+
+func (s SearchScraper) Export() SearchScraperExport {
+	return SearchScraperExport{
+		Url:             s.url,
+		InitialComplete: s.initialComplete,
+		Token:           s.searchContinueInput.Continuation,
+	}
+}
+
+func SearchScraperFromExport(export SearchScraperExport) (s SearchScraper, err error) {
+	s.url = export.Url
+	s.initialComplete = export.InitialComplete
+
+	s.searchContinueInput = continueInput{Continuation: export.Token}.FillGenericInfo()
+	s.searchContinueInputJson, err = s.searchContinueInput.Construct()
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func NewSearchScraper(query string) (s SearchScraper, err error) {
 	rawUrl, err := url.Parse("https://www.youtube.com/results")
 	if err != nil {
 		return
@@ -173,8 +200,8 @@ func NewSearchScraper(query string) (s searchScraper, err error) {
 	return
 }
 
-func (s *searchScraper) NextPage() (videos []SearchVideo, err error) {
-	if !s.initialDone {
+func (s *SearchScraper) NextPage() (videos []SearchVideo, err error) {
+	if !s.initialComplete {
 		var rawJson string
 		rawJson, err = extractInitialData(s.url)
 		if err != nil {
@@ -209,7 +236,7 @@ func (s *searchScraper) NextPage() (videos []SearchVideo, err error) {
 			return
 		}
 
-		s.initialDone = true
+		s.initialComplete = true
 	} else {
 		var resp *http.Response
 		resp, err = http.Post("https://www.youtube.com/youtubei/v1/search", "application/json", bytes.NewReader(s.searchContinueInputJson))

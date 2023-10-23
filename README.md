@@ -11,6 +11,7 @@ Youtube metadata scraping library for golang
 - Fetch video sidebar recommendations (video, playlist, radio)
 - Fetch comments and its reply threads
 - Fetch non DRM video media URLs
+- Export pagination and scraper state to continue later
 
 ## Example
 For more examples please look into the "examples" folder
