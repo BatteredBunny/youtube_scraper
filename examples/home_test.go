@@ -2,8 +2,9 @@ package examples
 
 import (
 	"encoding/json"
-	"git.catnip.ee/miisu/youtube_scraper"
 	"testing"
+
+	scraper "git.catnip.ee/miisu/youtube_scraper"
 )
 
 func TestHomeVideosScraper(t *testing.T) {
@@ -25,5 +26,6 @@ func TestHomeVideosScraper(t *testing.T) {
 			}
 			t.Log(string(bs))
 		}
+		t.Log("-------------")
 	}
 }

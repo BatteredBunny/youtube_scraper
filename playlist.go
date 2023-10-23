@@ -2,16 +2,20 @@ package scraper
 
 import (
 	"bytes"
-	"github.com/ayes-web/rjson"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
+
+	"github.com/ayes-web/rjson"
+	"github.com/dustin/go-humanize"
 )
 
 type PlaylistScraper struct {
 	url   string
-	state PlaylistInfo
+	state rawPlaylistInfo
 
 	playlistContinueToken string
 	playlistContinueInput []byte
@@ -37,6 +41,17 @@ func NewPlaylistScraper(playlistId string) (p PlaylistScraper, err error) {
 
 // youtube json type playlistVideoRenderer
 type PlaylistVideo struct {
+	VideoID              string
+	Title                string
+	PlaylistPosition     int
+	ChannelName          string
+	ChannelID            string
+	VideoLengthInSeconds int
+	Views                int
+	Date                 string // example: "8 years ago"
+}
+
+type playlistVideoRenderer struct {
 	VideoID              string `rjson:"videoId"`
 	Title                string `rjson:"title.runs[0].text"`
 	PlaylistPosition     int    `rjson:"index.simpleText"`
@@ -47,7 +62,28 @@ type PlaylistVideo struct {
 	Date                 string `rjson:"videoInfo.runs[-].text"` // example: "8 years ago"
 }
 
-type PlaylistInfo struct {
+func (p *playlistVideoRenderer) ToPlaylistVideo() (v PlaylistVideo, err error) {
+	views, unit, err := humanize.ParseSI(fixUnit(strings.TrimSuffix(p.Views, " views")))
+	if err != nil {
+		return
+	} else if unit != "" {
+		log.Printf("WARNING: possibly wrong number for views: %f%s\n", views, unit)
+	}
+
+	v = PlaylistVideo{
+		VideoID:              p.VideoID,
+		Title:                p.Title,
+		PlaylistPosition:     p.PlaylistPosition,
+		ChannelName:          p.ChannelName,
+		ChannelID:            p.ChannelID,
+		VideoLengthInSeconds: p.VideoLengthInSeconds,
+		Views:                int(views),
+	}
+
+	return
+}
+
+type rawPlaylistInfo struct {
 	Title        string `rjson:"header.playlistHeaderRenderer.title.simpleText"`
 	Description  string `rjson:"header.playlistHeaderRenderer.descriptionText.simpleText"`
 	ChannelName  string `rjson:"header.playlistHeaderRenderer.ownerText.runs[0].text"`
@@ -57,13 +93,62 @@ type PlaylistInfo struct {
 	Views        string `rjson:"header.playlistHeaderRenderer.viewCountText.simpleText"`
 	UpdateStatus string `rjson:"header.playlistHeaderRenderer.byline[2].playlistBylineRenderer.text.runs[0].text"` // example: "Updated today"
 
-	ContinuationToken string          `rjson:"contents.twoColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[0].itemSectionRenderer.contents[0].playlistVideoListRenderer.contents[-].continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
-	Videos            []PlaylistVideo `rjson:"contents.twoColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[0].itemSectionRenderer.contents[0].playlistVideoListRenderer.contents[].playlistVideoRenderer"`
+	ContinuationToken string                  `rjson:"contents.twoColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[0].itemSectionRenderer.contents[0].playlistVideoListRenderer.contents[-].continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
+	Videos            []playlistVideoRenderer `rjson:"contents.twoColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[0].itemSectionRenderer.contents[0].playlistVideoListRenderer.contents[].playlistVideoRenderer"`
+}
+
+type PlaylistInfo struct {
+	Title        string
+	Description  string
+	ChannelName  string
+	ChannelID    string
+	NewChannelID string
+	VideosCount  int
+	Views        int
+	UpdateStatus string // example: "Updated today"
+
+	ContinuationToken string
+	Videos            []PlaylistVideo
+}
+
+func (p *rawPlaylistInfo) ToPlaylistInfo() (o PlaylistInfo, err error) {
+	var videos []PlaylistVideo
+	for _, video := range p.Videos {
+		if v, err := video.ToPlaylistVideo(); err != nil {
+			log.Println("WARNING:", err)
+			continue
+		} else {
+			videos = append(videos, v)
+		}
+	}
+
+	views, err := strconv.Atoi(fixUnit(strings.ReplaceAll(p.Views, ",", "")))
+	if err != nil {
+		return
+	}
+
+	videosCount, err := strconv.Atoi(fixUnit(strings.ReplaceAll(p.VideosCount, ",", "")))
+	if err != nil {
+		return
+	}
+
+	o = PlaylistInfo{
+		Title:        p.Title,
+		Description:  p.Description,
+		ChannelName:  p.ChannelName,
+		ChannelID:    p.ChannelID,
+		NewChannelID: p.NewChannelID,
+		VideosCount:  videosCount,
+		Views:        views,
+		UpdateStatus: p.UpdateStatus,
+		Videos:       videos,
+	}
+	return
 }
 
 type PlaylistContinueOutput struct {
-	ContinuationToken string          `rjson:"onResponseReceivedActions[0]appendContinuationItemsAction.continuationItems[-].continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
-	Videos            []PlaylistVideo `rjson:"onResponseReceivedActions[0]appendContinuationItemsAction.continuationItems[].playlistVideoRenderer"`
+	ContinuationToken string                  `rjson:"onResponseReceivedActions[0]appendContinuationItemsAction.continuationItems[-].continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
+	Videos            []playlistVideoRenderer `rjson:"onResponseReceivedActions[0]appendContinuationItemsAction.continuationItems[].playlistVideoRenderer"`
 }
 
 // GetPlaylistInfo returns the initial info from the page
@@ -74,8 +159,7 @@ func (p *PlaylistScraper) GetPlaylistInfo() (info PlaylistInfo, err error) {
 		}
 	}
 
-	info = p.state
-	return
+	return p.state.ToPlaylistInfo()
 }
 
 func (p *PlaylistScraper) NextPage() (videos []PlaylistVideo, err error) {
@@ -103,7 +187,15 @@ func (p *PlaylistScraper) NextPage() (videos []PlaylistVideo, err error) {
 		}
 
 		p.initialDone = true
-		videos = p.state.Videos
+
+		for _, video := range p.state.Videos {
+			if v, err := video.ToPlaylistVideo(); err != nil {
+				log.Println("WARNING:", err)
+				continue
+			} else {
+				videos = append(videos, v)
+			}
+		}
 	} else {
 		if len(p.playlistContinueInput) == 0 {
 			return
@@ -138,7 +230,14 @@ func (p *PlaylistScraper) NextPage() (videos []PlaylistVideo, err error) {
 			}
 		}
 
-		videos = out.Videos
+		for _, video := range out.Videos {
+			if v, err := video.ToPlaylistVideo(); err != nil {
+				log.Println("WARNING:", err)
+				continue
+			} else {
+				videos = append(videos, v)
+			}
+		}
 	}
 
 	return

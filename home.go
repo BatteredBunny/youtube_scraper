@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"github.com/ayes-web/rjson"
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
+
+	"github.com/ayes-web/rjson"
 )
 
 type HomeVideosScraper struct {
@@ -43,7 +45,7 @@ type homeInitialOutputVideo struct {
 	OwnerBadges []string `rjson:"ownerBadges[].metadataBadgeRenderer.tooltip"`
 }
 
-func (video homeInitialOutputVideo) ToVideo() Video {
+func (video homeInitialOutputVideo) ToVideo() (v Video, err error) {
 	var authorIsVerified bool
 	var authorIsVerifiedArtist bool
 	for _, ownerBadge := range video.OwnerBadges {
@@ -56,12 +58,29 @@ func (video homeInitialOutputVideo) ToVideo() Video {
 	}
 
 	date, wasLive := strings.CutPrefix(video.Date, "Streamed ")
-	return Video{
+
+	var views int
+	if video.Views != "" {
+		views, err = strconv.Atoi(fixUnit(strings.ReplaceAll(strings.TrimSuffix(video.Views, " views"), ",", "")))
+		if err != nil {
+			return
+		}
+	}
+
+	var viewers int
+	if video.Viewers != "" {
+		viewers, err = strconv.Atoi(fixUnit(strings.ReplaceAll(strings.TrimSuffix(video.Viewers, " watching"), ",", "")))
+		if err != nil {
+			return
+		}
+	}
+
+	v = Video{
 		VideoID:                video.VideoID,
 		Title:                  video.Title,
 		Length:                 video.Length,
-		Views:                  video.Views,
-		Viewers:                video.Viewers,
+		Views:                  views,
+		Viewers:                viewers,
 		Date:                   date,
 		Username:               video.Username,
 		ChannelID:              video.ChannelID,
@@ -71,6 +90,7 @@ func (video homeInitialOutputVideo) ToVideo() Video {
 		AuthorIsVerified:       authorIsVerified,
 		AuthorIsVerifiedArtist: authorIsVerifiedArtist,
 	}
+	return
 }
 
 type homeInitialOutput struct {
@@ -139,7 +159,11 @@ func (h *HomeVideosScraper) runInitial() (videos []Video, err error) {
 			//	}
 			//}
 		} else if video.Video.VideoID != "" {
-			videos = append(videos, video.Video.ToVideo())
+			if v, err := video.Video.ToVideo(); err != nil {
+				log.Println("WARNING error while converting video:", err)
+			} else {
+				videos = append(videos, v)
+			}
 		}
 	}
 
@@ -190,7 +214,11 @@ func (h *HomeVideosScraper) NextPage() (videos []Video, err error) {
 
 		for _, video := range output.Videos {
 			if video.VideoID != "" {
-				videos = append(videos, video.ToVideo())
+				if v, err := video.ToVideo(); err != nil {
+					log.Println("WARNING error while converting video:", err)
+				} else {
+					videos = append(videos, v)
+				}
 			}
 		}
 	}

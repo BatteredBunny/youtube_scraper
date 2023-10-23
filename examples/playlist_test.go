@@ -1,12 +1,13 @@
 package examples
 
 import (
-	scraper "git.catnip.ee/miisu/youtube_scraper"
 	"testing"
+
+	scraper "git.catnip.ee/miisu/youtube_scraper"
 )
 
 func TestPlaylist(t *testing.T) {
-	p, err := scraper.NewPlaylistScraper("PLMC9KNkIncKtPzgY-5rmhvj7fax8fdxoj")
+	p, err := scraper.NewPlaylistScraper("PLJV9alv4vklceQIPKDx9X-9nZsINLQDqF")
 	if err != nil {
 		t.Fatal(err)
 	}

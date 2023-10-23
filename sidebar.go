@@ -3,7 +3,9 @@ package scraper
 import (
 	"bytes"
 	"io"
+	"log"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/ayes-web/rjson"
@@ -29,7 +31,8 @@ type SidebarVideo struct {
 	ChannelID       string
 	RawNewChannelID string
 	Date            string
-	Views           string
+	Views           int
+	Viewers         int
 	Length          string
 
 	AuthorIsVerified       bool
@@ -46,7 +49,7 @@ type SidebarPlaylist struct {
 	ChannelId    string
 	NewChannelID string
 
-	VideosAmount     string
+	VideosAmount     int
 	ThumbnailVideoID string
 }
 type SidebarRadio struct {
@@ -54,7 +57,7 @@ type SidebarRadio struct {
 	Title          string
 	SecondaryTitle string
 
-	VideosAmount     string
+	VideosAmount     int
 	ThumbnailVideoID string
 }
 
@@ -66,6 +69,7 @@ type compactVideoRenderer struct {
 	RawNewChannelID string   `rjson:"longBylineText.runs[0].navigationEndpoint.browseEndpoint.canonicalBaseUrl"` // has "/" at start that must be trimmed
 	Date            string   `rjson:"publishedTimeText.simpleText"`
 	Views           string   `rjson:"viewCountText.simpleText"`
+	Viewers         string   `rjson:"viewCountText.runs[0].text"`
 	Length          string   `rjson:"lengthText.simpleText"`
 	Badges          []string `rjson:"badges[].metadataBadgeRenderer.label"`        // example of badge "New" or "CC"
 	OwnerBadges     []string `rjson:"ownerBadges[].metadataBadgeRenderer.tooltip"` // example of owner badge "Verified" or "Official Artist Channel"
@@ -97,7 +101,7 @@ type rawSidebarEntry struct {
 	Radio    compactRadioRenderer    `rjson:"compactRadioRenderer"`
 }
 
-func (sidebarEntry rawSidebarEntry) ToSidebarEntry() (s SidebarEntry) {
+func (sidebarEntry rawSidebarEntry) ToSidebarEntry() (s SidebarEntry, err error) {
 	if sidebarEntry.Video.VideoID != "" {
 		var isNew bool
 		for _, badge := range sidebarEntry.Video.Badges {
@@ -119,6 +123,23 @@ func (sidebarEntry rawSidebarEntry) ToSidebarEntry() (s SidebarEntry) {
 		}
 
 		date, wasLive := strings.CutPrefix(sidebarEntry.Video.Date, "Streamed ")
+
+		var views int
+		if sidebarEntry.Video.Views != "" {
+			views, err = strconv.Atoi(strings.ReplaceAll(strings.TrimSuffix(sidebarEntry.Video.Views, " views"), ",", ""))
+			if err != nil {
+				return
+			}
+		}
+
+		var viewers int
+		if sidebarEntry.Video.Viewers != "" {
+			viewers, err = strconv.Atoi(strings.ReplaceAll(sidebarEntry.Video.Viewers, ",", ""))
+			if err != nil {
+				return
+			}
+		}
+
 		s = SidebarEntry{
 			Type: SidebarEntryVideo,
 			Entry: SidebarVideo{
@@ -128,7 +149,8 @@ func (sidebarEntry rawSidebarEntry) ToSidebarEntry() (s SidebarEntry) {
 				ChannelID:              sidebarEntry.Video.ChannelID,
 				RawNewChannelID:        strings.TrimPrefix(sidebarEntry.Video.RawNewChannelID, "/"),
 				Date:                   date,
-				Views:                  sidebarEntry.Video.Views,
+				Views:                  views,
+				Viewers:                viewers,
 				Length:                 sidebarEntry.Video.Length,
 				AuthorIsVerified:       authorIsVerified,
 				AuthorIsVerifiedArtist: authorIsVerifiedArtist,
@@ -138,6 +160,12 @@ func (sidebarEntry rawSidebarEntry) ToSidebarEntry() (s SidebarEntry) {
 			},
 		}
 	} else if sidebarEntry.Playlist.PlaylistID != "" {
+		var videosAmount int
+		videosAmount, err = strconv.Atoi(fixUnit(strings.ReplaceAll(sidebarEntry.Playlist.VideosAmount, ",", "")))
+		if err != nil {
+			return
+		}
+
 		s = SidebarEntry{
 			Type: SidebarEntryPlaylist,
 			Entry: SidebarPlaylist{
@@ -146,18 +174,24 @@ func (sidebarEntry rawSidebarEntry) ToSidebarEntry() (s SidebarEntry) {
 				Username:         sidebarEntry.Playlist.Username,
 				ChannelId:        sidebarEntry.Playlist.ChannelID,
 				NewChannelID:     strings.TrimPrefix(sidebarEntry.Playlist.RawNewChannelID, "/"),
-				VideosAmount:     sidebarEntry.Playlist.VideosAmount,
+				VideosAmount:     videosAmount,
 				ThumbnailVideoID: sidebarEntry.Playlist.ThumbnailVideoID,
 			},
 		}
 	} else if sidebarEntry.Radio.RadioPlaylistID != "" {
+		var videosAmount int
+		videosAmount, err = strconv.Atoi(fixUnit(strings.ReplaceAll(sidebarEntry.Playlist.VideosAmount, ",", "")))
+		if err != nil {
+			return
+		}
+
 		s = SidebarEntry{
 			Type: SidebarEntryRadio,
 			Entry: SidebarRadio{
 				PlaylistID:       sidebarEntry.Radio.RadioPlaylistID,
 				Title:            sidebarEntry.Radio.Title,
 				SecondaryTitle:   sidebarEntry.Radio.SecondaryTitle,
-				VideosAmount:     sidebarEntry.Radio.VideosAmount,
+				VideosAmount:     videosAmount,
 				ThumbnailVideoID: sidebarEntry.Radio.ThumbnailVideoID,
 			},
 		}
@@ -200,7 +234,11 @@ func (v *VideoScraper) NextSidebarVideosPage() (sidebarEntries []SidebarEntry, e
 
 	for _, sidebarEntry := range output.SidebarEntries {
 		if sidebarEntry.Video.VideoID != "" || sidebarEntry.Playlist.PlaylistID != "" || sidebarEntry.Radio.RadioPlaylistID != "" {
-			sidebarEntries = append(sidebarEntries, sidebarEntry.ToSidebarEntry())
+			if entry, err := sidebarEntry.ToSidebarEntry(); err != nil {
+				log.Println("WARNING converting to sidebar failed:", err)
+			} else {
+				sidebarEntries = append(sidebarEntries, entry)
+			}
 		}
 	}
 

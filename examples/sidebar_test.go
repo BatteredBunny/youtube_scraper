@@ -1,8 +1,9 @@
 package examples
 
 import (
-	"git.catnip.ee/miisu/youtube_scraper"
 	"testing"
+
+	scraper "git.catnip.ee/miisu/youtube_scraper"
 )
 
 func TestSidebarVideos(t *testing.T) {
@@ -40,4 +41,5 @@ func HandleSidebarEntries(t *testing.T, sidebarEntries []scraper.SidebarEntry) {
 			t.Log("radio:", sidebarRadio)
 		}
 	}
+	t.Log("-------------")
 }

@@ -3,11 +3,14 @@ package scraper
 import (
 	"bytes"
 	"errors"
-	"github.com/ayes-web/rjson"
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
+
+	"github.com/ayes-web/rjson"
+	"github.com/dustin/go-humanize"
 )
 
 type Comment struct {
@@ -15,12 +18,12 @@ type Comment struct {
 	CommentID     string
 	Content       string
 	PublishedTime string // "5 days ago"
-	LikeAmount    string // Empty means 0 likes
+	Likes         int
 	PinnedBy      string // "Pinned by Username"
 	IsPinned      bool
 	IsHearted     bool
 	WasEdited     bool // if the comment was edited
-	RepliesAmount string
+	RepliesAmount int
 
 	repliesToken             string
 	repliesContinueInputJson []byte
@@ -84,13 +87,26 @@ func (c *Comment) NextSubCommentPage() (comments []Comment, err error) {
 	for _, comment := range output.Comments {
 		if comment.CommentID != "" {
 			publishedTime, wasEdited := strings.CutSuffix(comment.PublishedTime, " (edited)")
+
+			var likes float64
+			if comment.LikeAmount != "" {
+				var unit string
+				likes, unit, err = humanize.ParseSI(fixUnit(comment.LikeAmount))
+				if err != nil {
+					log.Println("WARNING:", err)
+					continue
+				} else if unit != "" {
+					log.Printf("WARNING: possibly wrong number for likes: %f%s\n", likes, unit)
+				}
+			}
+
 			comments = append(comments, Comment{
 				NewChannelID:  comment.NewChannelID,
 				CommentID:     comment.CommentID,
 				Content:       strings.Join(comment.Content, ""),
 				PublishedTime: publishedTime,
 				WasEdited:     wasEdited,
-				LikeAmount:    comment.LikeAmount,
+				Likes:         int(likes),
 				PinnedBy:      strings.Join(comment.Pinned, ""),
 				IsPinned:      len(comment.Pinned) > 0,
 				IsHearted:     comment.IsHearted,
@@ -160,17 +176,39 @@ func genericNextCommentsPage(token *string, continueInputJson *[]byte, outputGen
 		}
 
 		publishedTime, wasEdited := strings.CutSuffix(comment.Comment.PublishedTime, " (edited)")
+
+		var likes float64
+		if comment.Comment.LikeAmount != "" {
+			var unit string
+			likes, unit, err = humanize.ParseSI(fixUnit(comment.Comment.LikeAmount))
+			if err != nil {
+				log.Println("WARNING:", err)
+				continue
+			} else if unit != "" {
+				log.Printf("WARNING: possibly wrong number for likes: %f%s\n", likes, unit)
+			}
+		}
+
+		var repliesAmount int
+		if comment.RepliesAmount != "" {
+			repliesAmount, err = strconv.Atoi(fixUnit(strings.ReplaceAll(strings.TrimSuffix(strings.TrimSuffix(comment.RepliesAmount, " replies"), " reply"), ",", "")))
+			if err != nil {
+				log.Println("WARNING:", err)
+				continue
+			}
+		}
+
 		comments = append(comments, Comment{
 			NewChannelID:             comment.Comment.NewChannelID,
 			CommentID:                comment.Comment.CommentID,
 			Content:                  strings.Join(comment.Comment.Content, ""),
 			PublishedTime:            publishedTime,
 			WasEdited:                wasEdited,
-			LikeAmount:               comment.Comment.LikeAmount,
+			Likes:                    int(likes),
 			PinnedBy:                 strings.Join(comment.Comment.Pinned, ""),
 			IsPinned:                 len(comment.Comment.Pinned) > 0,
 			IsHearted:                comment.Comment.IsHearted,
-			RepliesAmount:            strings.TrimSuffix(strings.TrimSuffix(comment.RepliesAmount, " replies"), " reply"),
+			RepliesAmount:            repliesAmount,
 			repliesToken:             repliesToken,
 			repliesContinueInputJson: repliesContinueInputJson,
 		})

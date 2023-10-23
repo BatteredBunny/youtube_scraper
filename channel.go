@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/ayes-web/rjson"
@@ -22,7 +23,7 @@ type Channel struct {
 	NewChannelID     string
 	Username         string
 	Description      string
-	VideosAmount     int // e.g "15", "1.5K"
+	VideosAmount     int
 
 	Avatars []YoutubeImage
 	Banners []YoutubeImage
@@ -36,13 +37,8 @@ type Video struct {
 	// example value 7:03
 	Length string `json:"Length,omitempty"`
 
-	/*
-		Will be empty if its livestream
-		Examples
-			- 100 views
-			- 6,396,043 views
-	*/
-	Views string `json:"Views,omitempty"`
+	Views   int `json:"Views,omitempty"`   // Will be empty if its livestream
+	Viewers int `json:"Viewers,omitempty"` // Empty if it's not a livestream
 
 	/*
 		Will be empty if its livestream
@@ -80,11 +76,10 @@ type Video struct {
 	ChannelID    string `json:"ChannelID"`
 	NewChannelID string `json:"NewChannelID"` // @username
 
-	Viewers                string `json:"Viewers,omitempty"` // Empty if it's not a livestream
-	IsLive                 bool   `json:"IsLive"`
-	WasLive                bool   `json:"WasLive"`
-	AuthorIsVerified       bool   `json:"AuthorIsVerified"`
-	AuthorIsVerifiedArtist bool   `json:"AuthorIsVerifiedArtist"`
+	IsLive                 bool `json:"IsLive"`
+	WasLive                bool `json:"WasLive"`
+	AuthorIsVerified       bool `json:"AuthorIsVerified"`
+	AuthorIsVerifiedArtist bool `json:"AuthorIsVerifiedArtist"`
 }
 
 type ChannelScraper struct {
@@ -168,14 +163,31 @@ type videoRenderer struct {
 	Date    string `rjson:"publishedTimeText.simpleText"`
 }
 
-func (video videoRenderer) ToVideo(channel *Channel) Video {
+func (video videoRenderer) ToVideo(channel *Channel) (v Video, err error) {
 	date, wasLive := strings.CutPrefix(video.Date, "Streamed ")
-	return Video{
+
+	var views int
+	if video.Views != "" {
+		views, err = strconv.Atoi(fixUnit(strings.ReplaceAll(strings.TrimSuffix(video.Views, " views"), ",", "")))
+		if err != nil {
+			return
+		}
+	}
+
+	var viewers int
+	if video.Viewers != "" {
+		viewers, err = strconv.Atoi(fixUnit(strings.ReplaceAll(strings.TrimSuffix(video.Viewers, " watching"), ",", "")))
+		if err != nil {
+			return
+		}
+	}
+
+	v = Video{
 		VideoID:                video.VideoID,
 		Title:                  video.Title,
 		Length:                 video.Length,
-		Views:                  video.Views,
-		Viewers:                video.Viewers,
+		Views:                  views,
+		Viewers:                viewers,
 		Date:                   date,
 		ChannelID:              channel.ChannelID,
 		NewChannelID:           channel.NewChannelID,
@@ -184,6 +196,7 @@ func (video videoRenderer) ToVideo(channel *Channel) Video {
 		AuthorIsVerified:       channel.IsVerified,
 		AuthorIsVerifiedArtist: channel.IsVerifiedArtist,
 	}
+	return
 }
 
 type channelVideosInitialOutput struct {
@@ -263,7 +276,11 @@ func genericChannelInitial(initialComplete *bool, url string, channel *Channel, 
 
 	for _, video := range rawVideos {
 		if video.VideoID != "" {
-			videos = append(videos, video.ToVideo(channel))
+			if v, err := video.ToVideo(channel); err != nil {
+				log.Println("WARNING error while converting video:", err)
+			} else {
+				videos = append(videos, v)
+			}
 		}
 	}
 
@@ -297,7 +314,11 @@ func genericChannelPage(channel *Channel, continueInputJson *[]byte, outputGener
 
 	for _, video := range rawVideos {
 		if video.VideoID != "" {
-			videos = append(videos, video.ToVideo(channel))
+			if v, err := video.ToVideo(channel); err != nil {
+				log.Println("WARNING error while converting video:", err)
+			} else {
+				videos = append(videos, v)
+			}
 		}
 	}
 

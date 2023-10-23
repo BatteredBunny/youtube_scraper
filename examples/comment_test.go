@@ -1,8 +1,9 @@
 package examples
 
 import (
-	"git.catnip.ee/miisu/youtube_scraper"
 	"testing"
+
+	scraper "git.catnip.ee/miisu/youtube_scraper"
 )
 
 func TestVideoCommentNewestScraper(t *testing.T) {
@@ -21,8 +22,9 @@ func TestVideoCommentNewestScraper(t *testing.T) {
 		}
 
 		for _, comment := range comments {
-			t.Log("id:", comment.CommentID, "content:", comment.Content, "date:", comment.PublishedTime)
+			t.Log("id:", comment.CommentID, "likes:", comment.Likes, "replies:", comment.RepliesAmount)
 		}
+		t.Log("-------------")
 	}
 }
 func TestVideoCommentTopScraper(t *testing.T) {
@@ -38,7 +40,7 @@ func TestVideoCommentTopScraper(t *testing.T) {
 	}
 
 	for _, comment := range comments {
-		t.Log("id:", comment.CommentID, "likes:", comment.LikeAmount, "content:", comment.Content)
+		t.Log("id:", comment.CommentID, "likes:", comment.Likes, "replies:", comment.RepliesAmount)
 	}
 }
 

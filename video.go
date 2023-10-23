@@ -176,7 +176,11 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 
 	for _, sidebarEntry := range output.SidebarEntries {
 		if sidebarEntry.Video.VideoID != "" || sidebarEntry.Playlist.PlaylistID != "" || sidebarEntry.Radio.RadioPlaylistID != "" {
-			v.InitialSidebarEntries = append(v.InitialSidebarEntries, sidebarEntry.ToSidebarEntry())
+			if entry, err := sidebarEntry.ToSidebarEntry(); err != nil {
+				log.Println("WARNING converting to sidebar failed:", err)
+			} else {
+				v.InitialSidebarEntries = append(v.InitialSidebarEntries, entry)
+			}
 		}
 	}
 
