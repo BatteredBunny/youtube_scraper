@@ -4,13 +4,14 @@ import scraper "git.catnip.ee/miisu/youtube_scraper"
 
 // youtube json commentRenderer type
 type commentRenderer struct {
-	NewChannelID  string   `rjson:"authorText.simpleText"`
-	CommentID     string   `rjson:"commentId"`
-	Content       []string `rjson:"contentText.runs[].text"`
-	PublishedTime string   `rjson:"publishedTimeText.runs[0].text"` // ends with "(edited)" if the comment has been edited
-	LikeAmount    string   `rjson:"voteCount.simpleText"`           // 3K
-	Pinned        []string `rjson:"pinnedCommentBadge.pinnedCommentBadgeRenderer.label.runs[].text"`
-	IsHearted     bool     `rjson:"actionButtons.commentActionButtonsRenderer.creatorHeart.creatorHeartRenderer.isHearted"`
+	NewChannelID  string                 `rjson:"authorText.simpleText"`
+	CommentID     string                 `rjson:"commentId"`
+	Content       []string               `rjson:"contentText.runs[].text"`
+	PublishedTime string                 `rjson:"publishedTimeText.runs[0].text"` // ends with "(edited)" if the comment has been edited
+	LikeAmount    string                 `rjson:"voteCount.simpleText"`           // 3K
+	Pinned        []string               `rjson:"pinnedCommentBadge.pinnedCommentBadgeRenderer.label.runs[].text"`
+	IsHearted     bool                   `rjson:"actionButtons.commentActionButtonsRenderer.creatorHeart.creatorHeartRenderer.isHearted"`
+	Avatars       []scraper.YoutubeImage `rjson:"authorThumbnail.thumbnails"`
 }
 
 type subCommentsContinueOutput struct {

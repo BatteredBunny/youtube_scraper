@@ -25,6 +25,7 @@ type Comment struct {
 	IsHearted     bool
 	WasEdited     bool // if the comment was edited
 	RepliesAmount int
+	Avatars       []scraper.YoutubeImage
 
 	repliesToken             string
 	repliesContinueInputJson []byte
@@ -180,6 +181,7 @@ func genericNextCommentsPage(input *scraper.ContinueInput, continueInputJson *[]
 			RepliesAmount:            repliesAmount,
 			repliesToken:             repliesToken,
 			repliesContinueInputJson: repliesContinueInputJson,
+			Avatars:                  comment.Comment.Avatars,
 		})
 	}
 
