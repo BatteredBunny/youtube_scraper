@@ -22,15 +22,15 @@ type HomeVideosScraper struct {
 }
 
 func HomeVideosScraperFromExport(export HomeVideosExport) (h HomeVideosScraper, err error) {
-	h.initialComplete = export.InitialComplete
+	h.initialComplete = export.initialComplete
 	h.url = "https://www.youtube.com/?hl=en"
 	h.continueInput = continueInput{
 		BrowseId:            "FEwhat_to_watch",
 		InlineSettingStatus: "INLINE_SETTING_STATUS_ON",
-		Continuation:        export.ContinueToken,
+		Continuation:        export.continueToken,
 	}.FillGenericInfo()
 
-	h.continueInput.Context.Client.VisitorData = export.VisitorData
+	h.continueInput.Context.Client.VisitorData = export.visitorData
 	h.continueInputJson, err = h.continueInput.Construct()
 	if err != nil {
 		return
@@ -46,16 +46,16 @@ func NewHomeVideosScraper() (h HomeVideosScraper) {
 }
 
 type HomeVideosExport struct {
-	ContinueToken   string
-	VisitorData     string
-	InitialComplete bool
+	continueToken   string
+	visitorData     string
+	initialComplete bool
 }
 
 func (h *HomeVideosScraper) Export() HomeVideosExport {
 	return HomeVideosExport{
-		ContinueToken:   h.continueInput.Continuation,
-		VisitorData:     h.continueInput.Context.Client.VisitorData,
-		InitialComplete: h.initialComplete,
+		continueToken:   h.continueInput.Continuation,
+		visitorData:     h.continueInput.Context.Client.VisitorData,
+		initialComplete: h.initialComplete,
 	}
 }
 

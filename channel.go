@@ -86,15 +86,60 @@ type Video struct {
 }
 
 type ChannelScraper struct {
+	channel Channel
+
 	streamsUrl string
 	videosUrl  string
-	channel    Channel
 
 	videosInitialComplete   bool
+	videosContinueInput     continueInput
 	videosContinueInputJson []byte
 
 	streamsInitialComplete   bool
+	streamsContinueInput     continueInput
 	streamsContinueInputJson []byte
+}
+
+type ChannelScraperExport struct {
+	streamsUrl string
+	videosUrl  string
+
+	videosInitialComplete bool
+	videosContinueToken   string
+
+	streamsInitialComplete bool
+	streamsContinueToken   string
+}
+
+func (c *ChannelScraper) Export() ChannelScraperExport {
+	return ChannelScraperExport{
+		streamsUrl:             c.streamsUrl,
+		videosUrl:              c.videosUrl,
+		videosInitialComplete:  c.videosInitialComplete,
+		videosContinueToken:    c.videosContinueInput.Continuation,
+		streamsInitialComplete: c.streamsInitialComplete,
+		streamsContinueToken:   c.streamsContinueInput.Continuation,
+	}
+}
+
+func ChannelScraperFromExport(export ChannelScraperExport) (c ChannelScraper, err error) {
+	c.streamsUrl = export.streamsUrl
+	c.streamsInitialComplete = export.streamsInitialComplete
+	c.streamsContinueInput = continueInput{Continuation: export.streamsContinueToken}.FillGenericInfo()
+	c.streamsContinueInputJson, err = c.streamsContinueInput.Construct()
+	if err != nil {
+		return
+	}
+
+	c.videosUrl = export.videosUrl
+	c.videosInitialComplete = export.videosInitialComplete
+	c.videosContinueInput = continueInput{Continuation: export.videosContinueToken}.FillGenericInfo()
+	c.videosContinueInputJson, err = c.videosContinueInput.Construct()
+	if err != nil {
+		return
+	}
+
+	return
 }
 
 // NewChannelScraper accepts normal id or @username
@@ -224,7 +269,7 @@ type channelContinueOutput struct {
 	ContinueToken string          `rjson:"onResponseReceivedActions[0].appendContinuationItemsAction.continuationItems[-]continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
 }
 
-func genericChannelInitial(initialComplete *bool, url string, channel *Channel, continueInputJson *[]byte, outputGeneric func(rawJson []byte) (rawChannel channelInitialAccount, rawVideos []videoRenderer, rawToken string, err error)) (videos []Video, err error) {
+func genericChannelInitial(input *continueInput, initialComplete *bool, url string, channel *Channel, continueInputJson *[]byte, outputGeneric func(rawJson []byte) (rawChannel channelInitialAccount, rawVideos []videoRenderer, rawToken string, err error)) (videos []Video, err error) {
 	var rawJson string
 	rawJson, err = extractInitialData(url)
 	if err != nil {
@@ -275,7 +320,8 @@ func genericChannelInitial(initialComplete *bool, url string, channel *Channel, 
 		}
 	}
 
-	*continueInputJson, err = continueInput{Continuation: rawToken}.FillGenericInfo().Construct()
+	*input = continueInput{Continuation: rawToken}.FillGenericInfo()
+	*continueInputJson, err = input.Construct()
 	if err != nil {
 		return
 	}
@@ -294,7 +340,7 @@ func genericChannelInitial(initialComplete *bool, url string, channel *Channel, 
 	return
 }
 
-func genericChannelPage(channel *Channel, continueInputJson *[]byte, outputGeneric func(rawJson []byte) (rawToken string, rawVideos []videoRenderer, err error)) (videos []Video, err error) {
+func genericChannelPage(input *continueInput, channel *Channel, continueInputJson *[]byte, outputGeneric func(rawJson []byte) (rawToken string, rawVideos []videoRenderer, err error)) (videos []Video, err error) {
 	var resp *http.Response
 	resp, err = http.Post("https://www.youtube.com/youtubei/v1/browse", "application/json", bytes.NewReader(*continueInputJson))
 	if err != nil {
@@ -313,7 +359,8 @@ func genericChannelPage(channel *Channel, continueInputJson *[]byte, outputGener
 		return
 	}
 
-	*continueInputJson, err = continueInput{Continuation: rawToken}.FillGenericInfo().Construct()
+	*input = continueInput{Continuation: rawToken}.FillGenericInfo()
+	*continueInputJson, err = input.Construct()
 	if err != nil {
 		return
 	}
@@ -334,7 +381,7 @@ func genericChannelPage(channel *Channel, continueInputJson *[]byte, outputGener
 // NextVideosPage scrapes pages of the `/videos` endpoint on channel page
 func (c *ChannelScraper) NextVideosPage() (videos []Video, err error) {
 	if !c.videosInitialComplete {
-		return genericChannelInitial(&c.videosInitialComplete, c.videosUrl, &c.channel, &c.videosContinueInputJson, func(rawJson []byte) (rawChannel channelInitialAccount, rawVideos []videoRenderer, rawToken string, err error) {
+		return genericChannelInitial(&c.videosContinueInput, &c.videosInitialComplete, c.videosUrl, &c.channel, &c.videosContinueInputJson, func(rawJson []byte) (rawChannel channelInitialAccount, rawVideos []videoRenderer, rawToken string, err error) {
 			debugFileOutput(rawJson, "channel_videos_initial.json")
 
 			var output channelVideosInitialOutput
@@ -355,7 +402,7 @@ func (c *ChannelScraper) NextVideosPage() (videos []Video, err error) {
 			return
 		})
 	} else {
-		return genericChannelPage(&c.channel, &c.videosContinueInputJson, func(rawJson []byte) (rawToken string, rawVideos []videoRenderer, err error) {
+		return genericChannelPage(&c.videosContinueInput, &c.channel, &c.videosContinueInputJson, func(rawJson []byte) (rawToken string, rawVideos []videoRenderer, err error) {
 			debugFileOutput(rawJson, "channel_videos.json")
 
 			var output channelContinueOutput
@@ -376,7 +423,7 @@ func (c *ChannelScraper) NextVideosPage() (videos []Video, err error) {
 // NextStreamsPage scrapes pages of the `/streams` endpoint on channel page
 func (c *ChannelScraper) NextStreamsPage() (videos []Video, err error) {
 	if !c.streamsInitialComplete {
-		videos, err = genericChannelInitial(&c.streamsInitialComplete, c.streamsUrl, &c.channel, &c.streamsContinueInputJson, func(rawJson []byte) (rawChannel channelInitialAccount, rawVideos []videoRenderer, rawToken string, err error) {
+		videos, err = genericChannelInitial(&c.streamsContinueInput, &c.streamsInitialComplete, c.streamsUrl, &c.channel, &c.streamsContinueInputJson, func(rawJson []byte) (rawChannel channelInitialAccount, rawVideos []videoRenderer, rawToken string, err error) {
 			debugFileOutput(rawJson, "channel_streams_initial.json")
 
 			var output channelStreamsInitialOutput
@@ -414,7 +461,7 @@ func (c *ChannelScraper) NextStreamsPage() (videos []Video, err error) {
 	} else {
 		// fix for pagination api sometimes not working
 		for i := 0; i < 3; i++ {
-			videos, err = genericChannelPage(&c.channel, &c.streamsContinueInputJson, func(rawJson []byte) (rawToken string, rawVideos []videoRenderer, err error) {
+			videos, err = genericChannelPage(&c.streamsContinueInput, &c.channel, &c.streamsContinueInputJson, func(rawJson []byte) (rawToken string, rawVideos []videoRenderer, err error) {
 				debugFileOutput(rawJson, "channel_streams.json")
 
 				var output channelContinueOutput
