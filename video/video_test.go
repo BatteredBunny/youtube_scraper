@@ -1,4 +1,4 @@
-package scraper
+package video
 
 import (
 	"net/http"

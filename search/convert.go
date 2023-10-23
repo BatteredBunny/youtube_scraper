@@ -1,4 +1,4 @@
-package scraper
+package search
 
 import (
 	"log"

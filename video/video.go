@@ -1,4 +1,4 @@
-package scraper
+package video
 
 import (
 	"bytes"
@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	scraper "git.catnip.ee/miisu/youtube_scraper"
 	"github.com/ayes-web/rjson"
 	"github.com/dustin/go-humanize"
 )
@@ -24,14 +25,14 @@ type VideoScraper struct {
 	url        string
 
 	commentsNewestPassedInitial     bool
-	commentsNewestContinueInput     ContinueInput
+	commentsNewestContinueInput     scraper.ContinueInput
 	commentsNewestContinueInputJson []byte
 
 	commentsTopPassedInitial     bool
-	commentsTopContinueInput     ContinueInput
+	commentsTopContinueInput     scraper.ContinueInput
 	commentsTopContinueInputJson []byte
 
-	sidebarContinueInput     ContinueInput
+	sidebarContinueInput     scraper.ContinueInput
 	sidebarContinueInputJson []byte
 }
 
@@ -54,36 +55,10 @@ type FullVideo struct {
 	ChannelID          string
 	NewChannelID       string
 	ChannelSubscribers int
-	ChannelAvatars     []YoutubeImage
+	ChannelAvatars     []scraper.YoutubeImage
 
 	ChannelIsVerified       bool
 	ChannelIsVerifiedArtist bool
-}
-
-type videoInitialOutput struct {
-	Title              string         `rjson:"playerOverlays.playerOverlayRenderer.videoDetails.playerOverlayVideoDetailsRenderer.title.simpleText"`
-	Description        string         `rjson:"contents.twoColumnWatchNextResults.results.results.contents[1].videoSecondaryInfoRenderer.attributedDescription.content"`
-	Views              string         `rjson:"playerOverlays.playerOverlayRenderer.videoDetails.playerOverlayVideoDetailsRenderer.subtitle.runs[2].text"`
-	IsLive             bool           `rjson:"contents.twoColumnWatchNextResults.results.results.contents[0].videoPrimaryInfoRenderer.viewCount.videoViewCountRenderer.isLive"`
-	Date               string         `rjson:"contents.twoColumnWatchNextResults.results.results.contents[0].videoPrimaryInfoRenderer.dateText.simpleText"`
-	Username           string         `rjson:"playerOverlays.playerOverlayRenderer.videoDetails.playerOverlayVideoDetailsRenderer.subtitle.runs[0].text"`
-	ChannelID          string         `rjson:"contents.twoColumnWatchNextResults.results.results.contents[1].videoSecondaryInfoRenderer.owner.videoOwnerRenderer.title.runs[0].navigationEndpoint.browseEndpoint.browseId"`
-	RawNewChannelID    string         `rjson:"contents.twoColumnWatchNextResults.results.results.contents[1].videoSecondaryInfoRenderer.owner.videoOwnerRenderer.title.runs[0].navigationEndpoint.browseEndpoint.canonicalBaseUrl"`
-	Likes              string         `rjson:"contents.twoColumnWatchNextResults.results.results.contents[0].videoPrimaryInfoRenderer.videoActions.menuRenderer.topLevelButtons[0].segmentedLikeDislikeButtonRenderer.likeButton.toggleButtonRenderer.defaultText.simpleText"`
-	ChannelSubscribers string         `rjson:"contents.twoColumnWatchNextResults.results.results.contents[1].videoSecondaryInfoRenderer.owner.videoOwnerRenderer.subscriberCountText.simpleText"`
-	CommentsCount      string         `rjson:"contents.twoColumnWatchNextResults.results.results.contents[2].itemSectionRenderer.contents[0].commentsEntryPointHeaderRenderer.commentCount.simpleText"`
-	Category           string         `rjson:"contents.twoColumnWatchNextResults.results.results.contents[1].videoSecondaryInfoRenderer.metadataRowContainer.metadataRowContainerRenderer.rows[0].richMetadataRowRenderer.contents[1].richMetadataRenderer.title.runs[0].text"`
-	OwnerBadges        []string       `rjson:"contents.twoColumnWatchNextResults.results.results.contents[1].videoSecondaryInfoRenderer.owner.videoOwnerRenderer.badges[].metadataBadgeRenderer.tooltip"`
-	Badges             []string       `rjson:"contents.twoColumnWatchNextResults.results.results.contents[0].videoPrimaryInfoRenderer.badges[].metadataBadgeRenderer.label"`
-	ChannelAvatars     []YoutubeImage `rjson:"contents.twoColumnWatchNextResults.results.results.contents[1].videoSecondaryInfoRenderer.owner.videoOwnerRenderer.thumbnail.thumbnails"`
-
-	Tokens []struct {
-		Title string `rjson:"title"`
-		Token string `rjson:"serviceEndpoint.continuationCommand.token"`
-	} `rjson:"engagementPanels[].engagementPanelSectionListRenderer.header.engagementPanelTitleHeaderRenderer.menu.sortFilterSubMenuRenderer.subMenuItems[0]"`
-
-	SidebarEntries []rawSidebarEntry `rjson:"contents.twoColumnWatchNextResults.secondaryResults.secondaryResults.results"`
-	SidebarToken   string            `rjson:"contents.twoColumnWatchNextResults.secondaryResults.secondaryResults.results[-].continuationItemRenderer.button.buttonRenderer.command.continuationCommand.token"`
 }
 
 var mediaUrlJsRegex = regexp.MustCompile(`src="(/s/player/[^\\/]+/player_ias[^\\/]+/en_US/base.js)"`)
@@ -114,17 +89,17 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 	v.mediaUrlJs = string(mediaUrlJsRegex.FindSubmatch(body)[1])
 
 	var rawJson string
-	rawJson, err = ExtractInitialDataBytes(body)
+	rawJson, err = scraper.ExtractInitialDataBytes(body)
 	if err != nil {
 		return
 	}
 
-	DebugFileOutput([]byte(rawJson), "video_initial.json")
+	scraper.DebugFileOutput([]byte(rawJson), "video_initial.json")
 
 	var output videoInitialOutput
 	if err = rjson.Unmarshal([]byte(rawJson), &output); err != nil {
 		if errors.Is(err, rjson.ErrCantFindField) {
-			if Debug {
+			if scraper.Debug {
 				log.Println("WARNING:", err)
 			}
 			err = nil
@@ -132,13 +107,12 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 		return
 	}
 
-	var channelIsVerified bool
-	var channelIsVerifiedArtist bool
+	var channelIsVerified, channelIsVerifiedArtist bool
 	for _, badge := range output.OwnerBadges {
 		switch badge {
-		case ChannelBadgeVerified:
+		case scraper.ChannelBadgeVerified:
 			channelIsVerified = true
-		case ChannelBadgeVerifiedArtistChannel:
+		case scraper.ChannelBadgeVerifiedArtistChannel:
 			channelIsVerifiedArtist = true
 		}
 	}
@@ -154,13 +128,13 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 	for _, token := range output.Tokens {
 		switch token.Title {
 		case "Top comments":
-			v.commentsTopContinueInput = ContinueInput{Continuation: token.Token}.FillGenericInfo()
+			v.commentsTopContinueInput = scraper.ContinueInput{Continuation: token.Token}.FillGenericInfo()
 			v.commentsTopContinueInputJson, err = v.commentsNewestContinueInput.Construct()
 			if err != nil {
 				return
 			}
 		case "Newest first":
-			v.commentsNewestContinueInput = ContinueInput{Continuation: token.Token}.FillGenericInfo()
+			v.commentsNewestContinueInput = scraper.ContinueInput{Continuation: token.Token}.FillGenericInfo()
 			v.commentsNewestContinueInputJson, err = v.commentsTopContinueInput.Construct()
 			if err != nil {
 				return
@@ -168,7 +142,7 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 		}
 	}
 
-	v.sidebarContinueInput = ContinueInput{Continuation: output.SidebarToken}.FillGenericInfo()
+	v.sidebarContinueInput = scraper.ContinueInput{Continuation: output.SidebarToken}.FillGenericInfo()
 	v.sidebarContinueInputJson, err = v.sidebarContinueInput.Construct()
 	if err != nil {
 		return
@@ -196,19 +170,19 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 		date = time.Now()
 		log.Println("WARNING: stream/premier is under 24h old, the date is not accurate")
 	} else {
-		date, err = time.Parse(YoutubeVideoDateLayout, dateText)
+		date, err = time.Parse(scraper.YoutubeVideoDateLayout, dateText)
 		if err != nil {
 			return
 		}
 	}
 
 	var views float64
-	views, err = ParseViews(output.Views)
+	views, err = scraper.ParseViews(output.Views)
 	if err != nil {
 		return
 	}
 
-	likes, unit, err := humanize.ParseSI(FixUnit(output.Likes))
+	likes, unit, err := humanize.ParseSI(scraper.FixUnit(output.Likes))
 	if err != nil {
 		return
 	} else if unit != "" {
@@ -217,7 +191,7 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 
 	var comments float64
 	if output.CommentsCount != "" {
-		comments, unit, err = humanize.ParseSI(FixUnit(output.CommentsCount))
+		comments, unit, err = humanize.ParseSI(scraper.FixUnit(output.CommentsCount))
 		if err != nil {
 			return
 		} else if unit != "" {
@@ -225,7 +199,7 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 		}
 	}
 
-	channelSubscribers, unit, err := humanize.ParseSI(FixUnit(strings.TrimSuffix(output.ChannelSubscribers, " subscribers")))
+	channelSubscribers, unit, err := humanize.ParseSI(scraper.FixUnit(strings.TrimSuffix(output.ChannelSubscribers, " subscribers")))
 	if err != nil {
 		return
 	} else if unit != "" {
@@ -257,23 +231,6 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 	return
 }
 
-type MediaFormat struct {
-	Bitrate int `rjson:"bitrate"`
-	Width   int `rjson:"width"`
-	Height  int `rjson:"height"`
-
-	Url             string `rjson:"url"`
-	MimeType        string `rjson:"mimeType"` // e.g "audio/mp4; codecs=\"mp4a.40.2\"" or "video/mp4; codecs=\"av01.0.00M.08\""
-	QualityLabel    string `rjson:"qualityLabel"`
-	SignatureCipher string `rjson:"signatureCipher"` // DRM
-
-	// Videos can have dubs
-	AudioTrack struct {
-		DisplayName    string `rjson:"displayName"`
-		AudioIsDefault bool   `rjson:"audioIsDefault"`
-	} `rjson:"audioTrack"`
-}
-
 // GetMediaUrl is a generic function to get the media url, doesnt matter if it has DRM or not
 func (m *MediaFormat) GetMediaUrl(v *VideoScraper) (out string, err error) {
 	if m.Url == "" && m.SignatureCipher != "" {
@@ -293,23 +250,16 @@ func (m *MediaFormat) GetMediaUrl(v *VideoScraper) (out string, err error) {
 	return
 }
 
-type ExtractMediaOutput struct {
-	Formats []MediaFormat `rjson:"streamingData.formats"`
-
-	// Best quality formats are here, but the video and audio tracks will be separate
-	AdaptiveFormats []MediaFormat `rjson:"streamingData.adaptiveFormats"`
-}
-
 func ExtractMediaFormats(id string) (output ExtractMediaOutput, err error) {
 	var bs []byte
-	bs, err = ContinueInput{VideoID: id}.FillGenericInfo().Construct()
+	bs, err = scraper.ContinueInput{VideoID: id}.FillGenericInfo().Construct()
 	if err != nil {
 		return
 	}
 
 	var resp *http.Response
 	// using the web key
-	resp, err = http.Post("https://youtubei.googleapis.com/youtubei/v1/player?key="+webKey, "application/json", bytes.NewReader(bs))
+	resp, err = http.Post("https://youtubei.googleapis.com/youtubei/v1/player?key="+scraper.WebKey, "application/json", bytes.NewReader(bs))
 	if err != nil {
 		return
 	}
@@ -324,6 +274,7 @@ func ExtractMediaFormats(id string) (output ExtractMediaOutput, err error) {
 
 	return
 }
+
 func (v *VideoScraper) ExtractMediaFormats() (output ExtractMediaOutput, err error) {
 	return ExtractMediaFormats(v.VideoInfo.VideoID)
 }

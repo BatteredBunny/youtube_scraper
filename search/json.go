@@ -1,4 +1,4 @@
-package scraper
+package search
 
 import scraper "git.catnip.ee/miisu/youtube_scraper"
 

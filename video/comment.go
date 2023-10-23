@@ -1,4 +1,4 @@
-package scraper
+package video
 
 import (
 	"bytes"
@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	scraper "git.catnip.ee/miisu/youtube_scraper"
 	"github.com/ayes-web/rjson"
 	"github.com/dustin/go-humanize"
 )
@@ -34,22 +35,6 @@ func (c *Comment) HasSubComments() bool {
 	return c.repliesToken != ""
 }
 
-// youtube json commentRenderer type
-type commentRenderer struct {
-	NewChannelID  string   `rjson:"authorText.simpleText"`
-	CommentID     string   `rjson:"commentId"`
-	Content       []string `rjson:"contentText.runs[].text"`
-	PublishedTime string   `rjson:"publishedTimeText.runs[0].text"` // ends with "(edited)" if the comment has been edited
-	LikeAmount    string   `rjson:"voteCount.simpleText"`           // 3K
-	Pinned        []string `rjson:"pinnedCommentBadge.pinnedCommentBadgeRenderer.label.runs[].text"`
-	IsHearted     bool     `rjson:"actionButtons.commentActionButtonsRenderer.creatorHeart.creatorHeartRenderer.isHearted"`
-}
-
-type subCommentsContinueOutput struct {
-	Comments      []commentRenderer `rjson:"onResponseReceivedEndpoints[0]appendContinuationItemsAction.continuationItems[].commentRenderer"`
-	ContinueToken string            `rjson:"onResponseReceivedEndpoints[0]appendContinuationItemsAction.continuationItems[-].continuationItemRenderer.button.buttonRenderer.command.continuationCommand.token"`
-}
-
 // NextSubCommentPage returns comment replies in chunks. Check with HasSubComments if there are replies
 func (c *Comment) NextSubCommentPage() (comments []Comment, err error) {
 	var resp *http.Response
@@ -65,12 +50,12 @@ func (c *Comment) NextSubCommentPage() (comments []Comment, err error) {
 		return
 	}
 
-	DebugFileOutput(body, "subcomment_%s.json", c.repliesToken)
+	scraper.DebugFileOutput(body, "subcomment_%s.json", c.repliesToken)
 
 	var output subCommentsContinueOutput
 	if err = rjson.Unmarshal(body, &output); err != nil {
 		if errors.Is(err, rjson.ErrCantFindField) {
-			if Debug {
+			if scraper.Debug {
 				log.Println("WARNING:", err)
 			}
 			err = nil
@@ -79,7 +64,7 @@ func (c *Comment) NextSubCommentPage() (comments []Comment, err error) {
 	}
 
 	c.repliesToken = output.ContinueToken
-	c.repliesContinueInputJson, err = ContinueInput{Continuation: c.repliesToken}.FillGenericInfo().Construct()
+	c.repliesContinueInputJson, err = scraper.ContinueInput{Continuation: c.repliesToken}.FillGenericInfo().Construct()
 	if err != nil {
 		return
 	}
@@ -91,7 +76,7 @@ func (c *Comment) NextSubCommentPage() (comments []Comment, err error) {
 			var likes float64
 			if comment.LikeAmount != "" {
 				var unit string
-				likes, unit, err = humanize.ParseSI(FixUnit(comment.LikeAmount))
+				likes, unit, err = humanize.ParseSI(scraper.FixUnit(comment.LikeAmount))
 				if err != nil {
 					log.Println("WARNING:", err)
 					continue
@@ -117,23 +102,7 @@ func (c *Comment) NextSubCommentPage() (comments []Comment, err error) {
 	return
 }
 
-// commentThreadRenderer json type
-type commentContinueOutputComment struct {
-	Comment       commentRenderer `rjson:"comment.commentRenderer"`
-	RepliesAmount string          `rjson:"replies.commentRepliesRenderer.viewReplies.buttonRenderer.text.runs[0].text"`
-	RepliesToken  string          `rjson:"replies.commentRepliesRenderer.contents[-].continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
-}
-
-type commentsContinueOutputInitial struct {
-	Comments      []commentContinueOutputComment `rjson:"onResponseReceivedEndpoints[1]reloadContinuationItemsCommand.continuationItems[].commentThreadRenderer"`
-	ContinueToken string                         `rjson:"onResponseReceivedEndpoints[1]reloadContinuationItemsCommand.continuationItems[-]continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
-}
-type commentsContinueOutput struct {
-	Comments      []commentContinueOutputComment `rjson:"onResponseReceivedEndpoints[0]appendContinuationItemsAction.continuationItems[].commentThreadRenderer"`
-	ContinueToken string                         `rjson:"onResponseReceivedEndpoints[0]appendContinuationItemsAction.continuationItems[-]continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
-}
-
-func genericNextCommentsPage(input *ContinueInput, continueInputJson *[]byte, outputGeneric func(rawJson []byte) (rawToken string, rawComments []commentContinueOutputComment, err error)) (comments []Comment, err error) {
+func genericNextCommentsPage(input *scraper.ContinueInput, continueInputJson *[]byte, outputGeneric func(rawJson []byte) (rawToken string, rawComments []commentContinueOutputComment, err error)) (comments []Comment, err error) {
 	var resp *http.Response
 	resp, err = http.Post("https://www.youtube.com/youtubei/v1/next", "application/json", bytes.NewReader(*continueInputJson))
 	if err != nil {
@@ -152,7 +121,7 @@ func genericNextCommentsPage(input *ContinueInput, continueInputJson *[]byte, ou
 		return
 	}
 
-	*input = ContinueInput{Continuation: rawToken}.FillGenericInfo()
+	*input = scraper.ContinueInput{Continuation: rawToken}.FillGenericInfo()
 	*continueInputJson, err = input.Construct()
 	if err != nil {
 		return
@@ -169,7 +138,7 @@ func genericNextCommentsPage(input *ContinueInput, continueInputJson *[]byte, ou
 		)
 		if comment.RepliesToken != "" {
 			repliesToken = comment.RepliesToken
-			repliesContinueInputJson, err = ContinueInput{Continuation: repliesToken}.FillGenericInfo().Construct()
+			repliesContinueInputJson, err = scraper.ContinueInput{Continuation: repliesToken}.FillGenericInfo().Construct()
 			if err != nil {
 				return
 			}
@@ -180,7 +149,7 @@ func genericNextCommentsPage(input *ContinueInput, continueInputJson *[]byte, ou
 		var likes float64
 		if comment.Comment.LikeAmount != "" {
 			var unit string
-			likes, unit, err = humanize.ParseSI(FixUnit(comment.Comment.LikeAmount))
+			likes, unit, err = humanize.ParseSI(scraper.FixUnit(comment.Comment.LikeAmount))
 			if err != nil {
 				log.Println("WARNING:", err)
 				continue
@@ -191,7 +160,7 @@ func genericNextCommentsPage(input *ContinueInput, continueInputJson *[]byte, ou
 
 		var repliesAmount int
 		if comment.RepliesAmount != "" {
-			repliesAmount, err = strconv.Atoi(FixUnit(strings.ReplaceAll(strings.TrimSuffix(strings.TrimSuffix(comment.RepliesAmount, " replies"), " reply"), ",", "")))
+			repliesAmount, err = strconv.Atoi(scraper.FixUnit(strings.ReplaceAll(strings.TrimSuffix(strings.TrimSuffix(comment.RepliesAmount, " replies"), " reply"), ",", "")))
 			if err != nil {
 				log.Println("WARNING:", err)
 				continue
@@ -221,12 +190,12 @@ func genericNextCommentsPage(input *ContinueInput, continueInputJson *[]byte, ou
 func (v *VideoScraper) NextNewestCommentsPage() (comments []Comment, err error) {
 	return genericNextCommentsPage(&v.commentsNewestContinueInput, &v.commentsNewestContinueInputJson, func(rawJson []byte) (rawToken string, rawComments []commentContinueOutputComment, err error) {
 		if !v.commentsNewestPassedInitial {
-			DebugFileOutput(rawJson, "comment_newest_initial_%s.json", v.commentsNewestContinueInput.Continuation)
+			scraper.DebugFileOutput(rawJson, "comment_newest_initial_%s.json", v.commentsNewestContinueInput.Continuation)
 
 			var output commentsContinueOutputInitial
 			if err = rjson.Unmarshal(rawJson, &output); err != nil {
 				if errors.Is(err, rjson.ErrCantFindField) {
-					if Debug {
+					if scraper.Debug {
 						log.Println("WARNING:", err)
 					}
 					err = nil
@@ -238,12 +207,12 @@ func (v *VideoScraper) NextNewestCommentsPage() (comments []Comment, err error) 
 			rawComments = output.Comments
 			v.commentsNewestPassedInitial = true
 		} else {
-			DebugFileOutput(rawJson, "comment_newest_%s.json", v.commentsNewestContinueInput.Continuation)
+			scraper.DebugFileOutput(rawJson, "comment_newest_%s.json", v.commentsNewestContinueInput.Continuation)
 
 			var output commentsContinueOutput
 			if err = rjson.Unmarshal(rawJson, &output); err != nil {
 				if errors.Is(err, errors.Unwrap(err)) {
-					if Debug {
+					if scraper.Debug {
 						log.Println("WARNING:", err)
 					}
 					err = nil
@@ -262,13 +231,13 @@ func (v *VideoScraper) NextNewestCommentsPage() (comments []Comment, err error) 
 // NextTopCommentsPage returns comments in chunks sorted by most popular
 func (v *VideoScraper) NextTopCommentsPage() (comments []Comment, err error) {
 	return genericNextCommentsPage(&v.commentsTopContinueInput, &v.commentsTopContinueInputJson, func(rawJson []byte) (rawToken string, rawComments []commentContinueOutputComment, err error) {
-		DebugFileOutput(rawJson, "comment_top_%s.json", v.commentsTopContinueInput.Continuation)
+		scraper.DebugFileOutput(rawJson, "comment_top_%s.json", v.commentsTopContinueInput.Continuation)
 
 		if !v.commentsTopPassedInitial {
 			var output commentsContinueOutputInitial
 			if err = rjson.Unmarshal(rawJson, &output); err != nil {
 				if errors.Is(err, errors.Unwrap(err)) {
-					if Debug {
+					if scraper.Debug {
 						log.Println("WARNING:", err)
 					}
 					err = nil
@@ -283,7 +252,7 @@ func (v *VideoScraper) NextTopCommentsPage() (comments []Comment, err error) {
 			var output commentsContinueOutput
 			if err = rjson.Unmarshal(rawJson, &output); err != nil {
 				if errors.Is(err, errors.Unwrap(err)) {
-					if Debug {
+					if scraper.Debug {
 						log.Println("WARNING:", err)
 					}
 					err = nil

@@ -1,4 +1,4 @@
-package scraper
+package video
 
 import (
 	"bytes"
@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	scraper "git.catnip.ee/miisu/youtube_scraper"
 	"github.com/ayes-web/rjson"
 )
 
@@ -34,14 +35,13 @@ type SidebarVideo struct {
 	Views           int
 	Viewers         int
 	Length          string
-	Thumbnails      []YoutubeImage
+	Thumbnails      []scraper.YoutubeImage
 
 	AuthorIsVerified, AuthorIsVerifiedArtist bool
 	HasNewBadge, HasCCBadge, Has4kBadge      bool
 
 	IsLive, WasLive bool
 }
-
 type SidebarPlaylist struct {
 	PlaylistID string
 	Title      string
@@ -52,7 +52,7 @@ type SidebarPlaylist struct {
 
 	VideosAmount     int
 	ThumbnailVideoID string
-	Thumbnails       []YoutubeImage
+	Thumbnails       []scraper.YoutubeImage
 }
 type SidebarRadio struct {
 	PlaylistID     string
@@ -61,50 +61,7 @@ type SidebarRadio struct {
 
 	VideosAmount     int
 	ThumbnailVideoID string
-	Thumbnails       []YoutubeImage
-}
-
-type compactVideoRenderer struct {
-	VideoID         string         `rjson:"videoId"`
-	Title           string         `rjson:"title.simpleText"`
-	Username        string         `rjson:"longBylineText.runs[0].text"`
-	ChannelID       string         `rjson:"longBylineText.runs[0].navigationEndpoint.browseEndpoint.browseId"`
-	RawNewChannelID string         `rjson:"longBylineText.runs[0].navigationEndpoint.browseEndpoint.canonicalBaseUrl"` // has "/" at start that must be trimmed
-	Date            string         `rjson:"publishedTimeText.simpleText"`
-	Views           string         `rjson:"viewCountText.simpleText"`
-	Viewers         string         `rjson:"viewCountText.runs[0].text"`
-	Length          string         `rjson:"lengthText.simpleText"`
-	Badges          []string       `rjson:"badges[].metadataBadgeRenderer.label"`        // example of badge "New" or "CC"
-	OwnerBadges     []string       `rjson:"ownerBadges[].metadataBadgeRenderer.tooltip"` // example of owner badge "Verified" or "Official Artist Channel"
-	Thumbnails      []YoutubeImage `rjson:"thumbnail.thumbnails"`
-}
-
-type compactPlaylistRenderer struct {
-	PlaylistID      string `rjson:"playlistId"`
-	Title           string `rjson:"title.simpleText"`
-	Username        string `rjson:"shortBylineText.runs[0].text"`
-	ChannelID       string `rjson:"shortBylineText.runs[0].navigationEndpoint.browseEndpoint.browseId"`
-	RawNewChannelID string `rjson:"shortBylineText.runs[0].navigationEndpoint.browseEndpoint.canonicalBaseUrl"` // has "/" at start that must be trimmed
-
-	VideosAmount     string         `rjson:"videoCountShortText.simpleText"`
-	ThumbnailVideoID string         `rjson:"navigationEndpoint.watchEndpoint.videoId"`
-	Thumbnails       []YoutubeImage `rjson:"thumbnail.thumbnails"`
-}
-
-type compactRadioRenderer struct {
-	RadioPlaylistID string `rjson:"playlistId"`
-	Title           string `rjson:"title.simpleText"`
-	SecondaryTitle  string `rjson:"longBylineText.simpleText"`
-
-	ThumbnailVideoID string         `rjson:"navigationEndpoint.watchEndpoint.videoId"`
-	VideosAmount     string         `rjson:"videoCountShortText.runs[0].text"`
-	Thumbnails       []YoutubeImage `rjson:"thumbnail.thumbnails"`
-}
-
-type rawSidebarEntry struct {
-	Video    compactVideoRenderer    `rjson:"compactVideoRenderer"`
-	Playlist compactPlaylistRenderer `rjson:"compactPlaylistRenderer"`
-	Radio    compactRadioRenderer    `rjson:"compactRadioRenderer"`
+	Thumbnails       []scraper.YoutubeImage
 }
 
 func (sidebarEntry rawSidebarEntry) ToSidebarEntry() (s SidebarEntry, err error) {
@@ -112,11 +69,11 @@ func (sidebarEntry rawSidebarEntry) ToSidebarEntry() (s SidebarEntry, err error)
 		var hasNewBadge, hasCCBadge, has4kBadge bool
 		for _, badge := range sidebarEntry.Video.Badges {
 			switch badge {
-			case VideoBadgeNew:
+			case scraper.VideoBadgeNew:
 				hasNewBadge = true
-			case VideoBadgeCC:
+			case scraper.VideoBadgeCC:
 				hasCCBadge = true
-			case VideoBadge4k:
+			case scraper.VideoBadge4k:
 				has4kBadge = true
 			}
 		}
@@ -124,9 +81,9 @@ func (sidebarEntry rawSidebarEntry) ToSidebarEntry() (s SidebarEntry, err error)
 		var authorIsVerifiedArtist, authorIsVerified bool
 		for _, ownerBadge := range sidebarEntry.Video.OwnerBadges {
 			switch ownerBadge {
-			case ChannelBadgeVerified:
+			case scraper.ChannelBadgeVerified:
 				authorIsVerified = true
-			case ChannelBadgeVerifiedArtistChannel:
+			case scraper.ChannelBadgeVerifiedArtistChannel:
 				authorIsVerifiedArtist = true
 			}
 		}
@@ -134,7 +91,7 @@ func (sidebarEntry rawSidebarEntry) ToSidebarEntry() (s SidebarEntry, err error)
 		date, wasLive := strings.CutPrefix(sidebarEntry.Video.Date, "Streamed ")
 
 		var views float64
-		views, err = ParseViews(sidebarEntry.Video.Views)
+		views, err = scraper.ParseViews(sidebarEntry.Video.Views)
 		if err != nil {
 			return
 		}
@@ -170,7 +127,7 @@ func (sidebarEntry rawSidebarEntry) ToSidebarEntry() (s SidebarEntry, err error)
 		}
 	} else if sidebarEntry.Playlist.PlaylistID != "" {
 		var videosAmount int
-		videosAmount, err = strconv.Atoi(FixUnit(strings.ReplaceAll(sidebarEntry.Playlist.VideosAmount, ",", "")))
+		videosAmount, err = strconv.Atoi(scraper.FixUnit(strings.ReplaceAll(sidebarEntry.Playlist.VideosAmount, ",", "")))
 		if err != nil {
 			return
 		}
@@ -190,7 +147,7 @@ func (sidebarEntry rawSidebarEntry) ToSidebarEntry() (s SidebarEntry, err error)
 		}
 	} else if sidebarEntry.Radio.RadioPlaylistID != "" {
 		var videosAmount int
-		videosAmount, err = strconv.Atoi(FixUnit(strings.ReplaceAll(sidebarEntry.Playlist.VideosAmount, ",", "")))
+		videosAmount, err = strconv.Atoi(scraper.FixUnit(strings.ReplaceAll(sidebarEntry.Playlist.VideosAmount, ",", "")))
 		if err != nil {
 			return
 		}
@@ -211,11 +168,6 @@ func (sidebarEntry rawSidebarEntry) ToSidebarEntry() (s SidebarEntry, err error)
 	return
 }
 
-type sidebarOutput struct {
-	SidebarEntries []rawSidebarEntry `rjson:"onResponseReceivedEndpoints[0].appendContinuationItemsAction.continuationItems"`
-	ContinueToken  string            `rjson:"onResponseReceivedEndpoints[0].appendContinuationItemsAction.continuationItems[-].continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
-}
-
 func (v *VideoScraper) NextSidebarVideosPage() (sidebarEntries []SidebarEntry, err error) {
 	var resp *http.Response
 	resp, err = http.Post("https://www.youtube.com/youtubei/v1/next", "application/json", bytes.NewReader(v.sidebarContinueInputJson))
@@ -230,14 +182,14 @@ func (v *VideoScraper) NextSidebarVideosPage() (sidebarEntries []SidebarEntry, e
 		return
 	}
 
-	DebugFileOutput(body, "sidebar_videos_%s.json", v.sidebarContinueInput.Continuation)
+	scraper.DebugFileOutput(body, "sidebar_videos_%s.json", v.sidebarContinueInput.Continuation)
 
 	var output sidebarOutput
 	if err = rjson.Unmarshal(body, &output); err != nil {
 		return
 	}
 
-	v.sidebarContinueInput = ContinueInput{Continuation: output.ContinueToken}.FillGenericInfo()
+	v.sidebarContinueInput = scraper.ContinueInput{Continuation: output.ContinueToken}.FillGenericInfo()
 	v.sidebarContinueInputJson, err = v.sidebarContinueInput.Construct()
 	if err != nil {
 		return
