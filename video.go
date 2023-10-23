@@ -24,15 +24,15 @@ type VideoScraper struct {
 	mediaUrlJs string
 	url        string
 
-	commentsNewestPassedInitial     bool
-	commentsNewestToken             string
+	commentsNewestPassedInitial bool
+	commentsNewestContinueInput continueInput
 	commentsNewestContinueInputJson []byte
 
-	commentsTopPassedInitial     bool
-	commentsTopToken             string
+	commentsTopPassedInitial bool
+	commentsTopContinueInput continueInput
 	commentsTopContinueInputJson []byte
 
-	sidebarToken             string
+	sidebarContinueInput     continueInput
 	sidebarContinueInputJson []byte
 }
 
@@ -133,15 +133,6 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 		return
 	}
 
-	for _, token := range output.Tokens {
-		switch token.Title {
-		case "Top comments":
-			v.commentsTopToken = token.Token
-		case "Newest first":
-			v.commentsNewestToken = token.Token
-		}
-	}
-
 	var channelIsVerified bool
 	var channelIsVerifiedArtist bool
 	for _, badge := range output.OwnerBadges {
@@ -161,17 +152,25 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 		}
 	}
 
-	v.sidebarToken = output.SidebarToken
+	for _, token := range output.Tokens {
+		switch token.Title {
+		case "Top comments":
+			v.commentsTopContinueInput = continueInput{Continuation: token.Token}.FillGenericInfo()
+			v.commentsTopContinueInputJson, err = v.commentsNewestContinueInput.Construct()
+			if err != nil {
+				return
+			}
+		case "Newest first":
+			v.commentsNewestContinueInput = continueInput{Continuation: token.Token}.FillGenericInfo()
+			v.commentsNewestContinueInputJson, err = v.commentsTopContinueInput.Construct()
+			if err != nil {
+				return
+			}
+		}
+	}
 
-	v.commentsNewestContinueInputJson, err = continueInput{Continuation: v.commentsNewestToken}.FillGenericInfo().Construct()
-	if err != nil {
-		return
-	}
-	v.commentsTopContinueInputJson, err = continueInput{Continuation: v.commentsTopToken}.FillGenericInfo().Construct()
-	if err != nil {
-		return
-	}
-	v.sidebarContinueInputJson, err = continueInput{Continuation: v.sidebarToken}.FillGenericInfo().Construct()
+	v.sidebarContinueInput = continueInput{Continuation: output.SidebarToken}.FillGenericInfo()
+	v.sidebarContinueInputJson, err = v.sidebarContinueInput.Construct()
 	if err != nil {
 		return
 	}

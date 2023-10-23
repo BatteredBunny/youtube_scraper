@@ -49,17 +49,19 @@ type PlaylistVideo struct {
 	VideoLengthInSeconds int
 	Views                int
 	Date                 string // example: "8 years ago"
+	Thumbnails           []YoutubeImage
 }
 
 type playlistVideoRenderer struct {
-	VideoID              string `rjson:"videoId"`
-	Title                string `rjson:"title.runs[0].text"`
-	PlaylistPosition     int    `rjson:"index.simpleText"`
-	ChannelName          string `rjson:"shortBylineText.runs[0].text"`
-	ChannelID            string `rjson:"shortBylineText.runs[0].navigationEndpoint.browseEndpoint.browseId"`
-	VideoLengthInSeconds int    `rjson:"lengthSeconds"`
-	Views                string `rjson:"videoInfo.runs[0].text"`
-	Date                 string `rjson:"videoInfo.runs[-].text"` // example: "8 years ago"
+	VideoID              string         `rjson:"videoId"`
+	Title                string         `rjson:"title.runs[0].text"`
+	PlaylistPosition     int            `rjson:"index.simpleText"`
+	ChannelName          string         `rjson:"shortBylineText.runs[0].text"`
+	ChannelID            string         `rjson:"shortBylineText.runs[0].navigationEndpoint.browseEndpoint.browseId"`
+	VideoLengthInSeconds int            `rjson:"lengthSeconds"`
+	Views                string         `rjson:"videoInfo.runs[0].text"`
+	Date                 string         `rjson:"videoInfo.runs[-].text"` // example: "8 years ago"
+	Thumbnails           []YoutubeImage `rjson:"thumbnail.thumbnails"`
 }
 
 func (p *playlistVideoRenderer) ToPlaylistVideo() (v PlaylistVideo, err error) {
@@ -78,6 +80,7 @@ func (p *playlistVideoRenderer) ToPlaylistVideo() (v PlaylistVideo, err error) {
 		ChannelID:            p.ChannelID,
 		VideoLengthInSeconds: p.VideoLengthInSeconds,
 		Views:                int(views),
+		Thumbnails:           p.Thumbnails,
 	}
 
 	return

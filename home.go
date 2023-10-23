@@ -61,12 +61,13 @@ func (h *HomeVideosScraper) Export() HomeVideosExport {
 
 // home has a modified version of videoRenderer with few additional lines of info, maybe best to merge them fully?
 type homeVideo struct {
-	VideoID string `rjson:"videoId"`
-	Title   string `rjson:"title.runs[0].text"`
-	Length  string `rjson:"lengthText.simpleText"`
-	Views   string `rjson:"viewCountText.simpleText"`
-	Viewers string `rjson:"viewCountText.runs[0].text"`
-	Date    string `rjson:"publishedTimeText.simpleText"`
+	VideoID    string         `rjson:"videoId"`
+	Title      string         `rjson:"title.runs[0].text"`
+	Length     string         `rjson:"lengthText.simpleText"`
+	Views      string         `rjson:"viewCountText.simpleText"`
+	Viewers    string         `rjson:"viewCountText.runs[0].text"`
+	Date       string         `rjson:"publishedTimeText.simpleText"`
+	Thumbnails []YoutubeImage `rjson:"thumbnail.thumbnails"`
 
 	ChannelAvatar   string   `rjson:"channelThumbnailSupportedRenderers.channelThumbnailWithLinkRenderer.thumbnail.thumbnails[0].url"`
 	Username        string   `rjson:"longBylineText.runs[0].text"`
@@ -120,6 +121,7 @@ func (video homeVideo) ToVideo() (v Video, err error) {
 		AuthorIsVerified:       authorIsVerified,
 		AuthorIsVerifiedArtist: authorIsVerifiedArtist,
 		ChannelAvatar:          video.ChannelAvatar,
+		Thumbnails:             video.Thumbnails,
 	}
 
 	return

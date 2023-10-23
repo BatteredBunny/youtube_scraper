@@ -133,7 +133,7 @@ type commentsContinueOutput struct {
 	ContinueToken string                         `rjson:"onResponseReceivedEndpoints[0]appendContinuationItemsAction.continuationItems[-]continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
 }
 
-func genericNextCommentsPage(token *string, continueInputJson *[]byte, outputGeneric func(rawJson []byte) (rawToken string, rawComments []commentContinueOutputComment, err error)) (comments []Comment, err error) {
+func genericNextCommentsPage(input *continueInput, continueInputJson *[]byte, outputGeneric func(rawJson []byte) (rawToken string, rawComments []commentContinueOutputComment, err error)) (comments []Comment, err error) {
 	var resp *http.Response
 	resp, err = http.Post("https://www.youtube.com/youtubei/v1/next", "application/json", bytes.NewReader(*continueInputJson))
 	if err != nil {
@@ -152,8 +152,8 @@ func genericNextCommentsPage(token *string, continueInputJson *[]byte, outputGen
 		return
 	}
 
-	*token = rawToken
-	*continueInputJson, err = continueInput{Continuation: *token}.FillGenericInfo().Construct()
+	*input = continueInput{Continuation: rawToken}.FillGenericInfo()
+	*continueInputJson, err = input.Construct()
 	if err != nil {
 		return
 	}
@@ -219,9 +219,9 @@ func genericNextCommentsPage(token *string, continueInputJson *[]byte, outputGen
 
 // NextNewestCommentsPage returns comments in chunks sorted by newest
 func (v *VideoScraper) NextNewestCommentsPage() (comments []Comment, err error) {
-	return genericNextCommentsPage(&v.commentsNewestToken, &v.commentsNewestContinueInputJson, func(rawJson []byte) (rawToken string, rawComments []commentContinueOutputComment, err error) {
+	return genericNextCommentsPage(&v.commentsNewestContinueInput, &v.commentsNewestContinueInputJson, func(rawJson []byte) (rawToken string, rawComments []commentContinueOutputComment, err error) {
 		if !v.commentsNewestPassedInitial {
-			debugFileOutput(rawJson, "comment_newest_initial_%s.json", v.commentsNewestToken)
+			debugFileOutput(rawJson, "comment_newest_initial_%s.json", v.commentsNewestContinueInput.Continuation)
 
 			var output commentsContinueOutputInitial
 			if err = rjson.Unmarshal(rawJson, &output); err != nil {
@@ -238,7 +238,7 @@ func (v *VideoScraper) NextNewestCommentsPage() (comments []Comment, err error) 
 			rawComments = output.Comments
 			v.commentsNewestPassedInitial = true
 		} else {
-			debugFileOutput(rawJson, "comment_newest_%s.json", v.commentsNewestToken)
+			debugFileOutput(rawJson, "comment_newest_%s.json", v.commentsNewestContinueInput.Continuation)
 
 			var output commentsContinueOutput
 			if err = rjson.Unmarshal(rawJson, &output); err != nil {
@@ -261,8 +261,8 @@ func (v *VideoScraper) NextNewestCommentsPage() (comments []Comment, err error) 
 
 // NextTopCommentsPage returns comments in chunks sorted by most popular
 func (v *VideoScraper) NextTopCommentsPage() (comments []Comment, err error) {
-	return genericNextCommentsPage(&v.commentsTopToken, &v.commentsTopContinueInputJson, func(rawJson []byte) (rawToken string, rawComments []commentContinueOutputComment, err error) {
-		debugFileOutput(rawJson, "comment_top_%s.json", v.commentsTopToken)
+	return genericNextCommentsPage(&v.commentsTopContinueInput, &v.commentsTopContinueInputJson, func(rawJson []byte) (rawToken string, rawComments []commentContinueOutputComment, err error) {
+		debugFileOutput(rawJson, "comment_top_%s.json", v.commentsTopContinueInput.Continuation)
 
 		if !v.commentsTopPassedInitial {
 			var output commentsContinueOutputInitial

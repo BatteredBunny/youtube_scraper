@@ -7,7 +7,7 @@ import (
 )
 
 func TestSidebarVideos(t *testing.T) {
-	v, err := scraper.NewVideoScraper("nfCUTZWwlvo")
+	v, err := scraper.NewVideoScraper("n8Rp_5lvhFI")
 	if err != nil {
 		t.Fatal(err)
 	}

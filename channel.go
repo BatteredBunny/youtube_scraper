@@ -72,6 +72,8 @@ type Video struct {
 	*/
 	Date string `json:"Date,omitempty"`
 
+	Thumbnails []YoutubeImage
+
 	Username      string
 	ChannelID     string
 	NewChannelID  string // @username
