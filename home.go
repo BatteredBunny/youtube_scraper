@@ -44,27 +44,31 @@ type homeInitialOutputVideo struct {
 
 func (video homeInitialOutputVideo) ToVideo() Video {
 	var authorIsVerified bool
+	var authorIsVerifiedArtist bool
 	for _, ownerBadge := range video.OwnerBadges {
 		switch ownerBadge {
 		case "Verified":
 			authorIsVerified = true
+		case "Official Artist Channel":
+			authorIsVerifiedArtist = true
 		}
 	}
 
 	date, wasLive := strings.CutPrefix(video.Date, "Streamed ")
 	return Video{
-		VideoID:          video.VideoID,
-		Title:            video.Title,
-		Length:           video.Length,
-		Views:            video.Views,
-		Viewers:          video.Viewers,
-		Date:             date,
-		Username:         video.Username,
-		ChannelID:        video.ChannelID,
-		NewChannelID:     strings.TrimPrefix(video.RawNewChannelID, "/"),
-		IsLive:           len(video.Viewers) > 0,
-		WasLive:          wasLive,
-		AuthorIsVerified: authorIsVerified,
+		VideoID:                video.VideoID,
+		Title:                  video.Title,
+		Length:                 video.Length,
+		Views:                  video.Views,
+		Viewers:                video.Viewers,
+		Date:                   date,
+		Username:               video.Username,
+		ChannelID:              video.ChannelID,
+		NewChannelID:           strings.TrimPrefix(video.RawNewChannelID, "/"),
+		IsLive:                 len(video.Viewers) > 0,
+		WasLive:                wasLive,
+		AuthorIsVerified:       authorIsVerified,
+		AuthorIsVerifiedArtist: authorIsVerifiedArtist,
 	}
 }
 

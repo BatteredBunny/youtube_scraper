@@ -11,13 +11,14 @@ import (
 )
 
 type Channel struct {
-	Subscribers  string
-	IsVerified   bool
-	ChannelID    string
-	NewChannelID string
-	Username     string
-	Description  string
-	VideosAmount string // e.g "15", "1.5K"
+	Subscribers      string
+	IsVerified       bool
+	IsVerifiedArtist bool
+	ChannelID        string
+	NewChannelID     string
+	Username         string
+	Description      string
+	VideosAmount     string // e.g "15", "1.5K"
 }
 
 type Video struct {
@@ -70,10 +71,11 @@ type Video struct {
 	ChannelID    string `json:"ChannelID"`
 	NewChannelID string `json:"NewChannelID"` // @username
 
-	Viewers          string `json:"Viewers"`
-	IsLive           bool   `json:"IsLive"`
-	WasLive          bool   `json:"WasLive"`
-	AuthorIsVerified bool   `json:"AuthorIsVerified"`
+	Viewers                string `json:"Viewers"`
+	IsLive                 bool   `json:"IsLive"`
+	WasLive                bool   `json:"WasLive"`
+	AuthorIsVerified       bool   `json:"AuthorIsVerified"`
+	AuthorIsVerifiedArtist bool   `json:"AuthorIsVerifiedArtist"`
 }
 
 type ChannelScraper struct {
@@ -134,17 +136,18 @@ type channelInitialVideo struct {
 func (video channelInitialVideo) ToVideo(channel *Channel) Video {
 	date, wasLive := strings.CutPrefix(video.Date, "Streamed ")
 	return Video{
-		VideoID:          video.VideoID,
-		Title:            video.Title,
-		Length:           video.Length,
-		Views:            video.Views,
-		Viewers:          video.Viewers,
-		Date:             date,
-		ChannelID:        channel.ChannelID,
-		NewChannelID:     channel.NewChannelID,
-		WasLive:          wasLive,
-		IsLive:           len(video.Viewers) > 0,
-		AuthorIsVerified: channel.IsVerified,
+		VideoID:                video.VideoID,
+		Title:                  video.Title,
+		Length:                 video.Length,
+		Views:                  video.Views,
+		Viewers:                video.Viewers,
+		Date:                   date,
+		ChannelID:              channel.ChannelID,
+		NewChannelID:           channel.NewChannelID,
+		WasLive:                wasLive,
+		IsLive:                 len(video.Viewers) > 0,
+		AuthorIsVerified:       channel.IsVerified,
+		AuthorIsVerifiedArtist: channel.IsVerifiedArtist,
 	}
 }
 
@@ -192,6 +195,8 @@ func genericChannelInitial(initialComplete *bool, url string, channel *Channel, 
 		switch badge {
 		case "Verified":
 			channel.IsVerified = true
+		case "Official Artist Channel":
+			channel.IsVerifiedArtist = true
 		}
 	}
 

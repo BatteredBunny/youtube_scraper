@@ -18,10 +18,11 @@ type SidebarVideo struct {
 	Views           string
 	Length          string
 
-	AuthorIsVerified bool
-	IsNew            bool
-	IsLive           bool
-	WasLive          bool
+	AuthorIsVerified       bool
+	AuthorIsVerifiedArtist bool
+	IsNew                  bool
+	IsLive                 bool
+	WasLive                bool
 }
 
 type rawSidebarVideo struct {
@@ -50,28 +51,32 @@ func (sidebarVideo rawSidebarVideo) ToSidebarVideo() SidebarVideo {
 		}
 	}
 
+	var authorIsVerifiedArtist bool
 	var authorIsVerified bool
 	for _, ownerBadge := range sidebarVideo.OwnerBadges {
 		switch ownerBadge {
 		case "Verified":
 			authorIsVerified = true
+		case "Official Artist Channel":
+			authorIsVerifiedArtist = true
 		}
 	}
 
 	date, wasLive := strings.CutPrefix(sidebarVideo.Date, "Streamed ")
 	return SidebarVideo{
-		VideoID:          sidebarVideo.VideoID,
-		Title:            sidebarVideo.Title,
-		Username:         sidebarVideo.Username,
-		ChannelID:        sidebarVideo.ChannelID,
-		RawNewChannelID:  strings.TrimPrefix(sidebarVideo.RawNewChannelID, "/"),
-		Date:             date,
-		Views:            sidebarVideo.Views,
-		Length:           sidebarVideo.Length,
-		AuthorIsVerified: authorIsVerified,
-		IsNew:            isNew,
-		IsLive:           len(sidebarVideo.Date) == 0,
-		WasLive:          wasLive,
+		VideoID:                sidebarVideo.VideoID,
+		Title:                  sidebarVideo.Title,
+		Username:               sidebarVideo.Username,
+		ChannelID:              sidebarVideo.ChannelID,
+		RawNewChannelID:        strings.TrimPrefix(sidebarVideo.RawNewChannelID, "/"),
+		Date:                   date,
+		Views:                  sidebarVideo.Views,
+		Length:                 sidebarVideo.Length,
+		AuthorIsVerified:       authorIsVerified,
+		AuthorIsVerifiedArtist: authorIsVerifiedArtist,
+		IsNew:                  isNew,
+		IsLive:                 len(sidebarVideo.Date) == 0,
+		WasLive:                wasLive,
 	}
 }
 
