@@ -5,8 +5,20 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
 )
+
+type Channel struct {
+	Subscribers  string
+	IsVerified   bool
+	ChannelID    string
+	NewChannelID string
+	Username     string
+	Description  string
+	VideosAmount int
+}
 
 type Video struct {
 	VideoID string `json:"VideoID"`
@@ -60,8 +72,9 @@ type Video struct {
 type ChannelVideosScraper struct {
 	url string
 
-	ChannelID    string
-	NewChannelID string // @username
+	channel Channel
+	// ChannelID    string
+	// NewChannelID string // @username
 
 	InitialComplete   bool
 	ContinueInputJson []byte
@@ -81,6 +94,18 @@ func NewChannelVideosScraper(id string) (c ChannelVideosScraper) {
 	return
 }
 
+// After the first page this data will become available
+func (c *ChannelVideosScraper) GetChannelInfo() (available bool, channel Channel) {
+	if c.InitialComplete {
+		channel = c.channel
+		available = true
+	} else {
+		available = false
+	}
+
+	return
+}
+
 func constructContinue(token string) (ContinueInputJson []byte, err error) {
 	continueInput := accountScrapeContinueInput{}
 	continueInput.Context.Client.Hl = "en"
@@ -92,52 +117,84 @@ func constructContinue(token string) (ContinueInputJson []byte, err error) {
 	return
 }
 
+func (c *ChannelVideosScraper) runInitial() (videos []Video, err error) {
+	var (
+		a       initialData
+		rawjson string
+	)
+	rawjson, err = ExtractInitialData(c.url)
+	if err != nil {
+		return
+	}
+
+	if DEBUG {
+		os.WriteFile("channel_initial.json", []byte(rawjson), 0777)
+	}
+
+	json.Unmarshal([]byte(rawjson), &a)
+
+	// channel
+	c.channel = Channel{
+		Subscribers:  a.Header.C4TabbedHeaderRenderer.SubscriberCountText.SimpleText,
+		ChannelID:    a.Metadata.ChannelMetadataRenderer.ExternalId,
+		NewChannelID: a.Header.C4TabbedHeaderRenderer.ChannelHandleText.Runs[0].Text,
+		Username:     a.Metadata.ChannelMetadataRenderer.Title,
+		Description:  a.Metadata.ChannelMetadataRenderer.Description,
+	}
+
+	for _, badge := range a.Header.C4TabbedHeaderRenderer.Badges {
+		if badge.MetadataBadgeRenderer.Tooltip == "Verified" {
+			c.channel.IsVerified = true
+		}
+	}
+
+	rawVideosAmount := a.Header.C4TabbedHeaderRenderer.VideosCountText.Runs[0].Text
+	if rawVideosAmount == "No videos" {
+		c.channel.VideosAmount = 0
+	} else {
+		c.channel.VideosAmount, err = strconv.Atoi(rawVideosAmount)
+		if err != nil {
+			return
+		}
+	}
+
+	// videos
+	for _, tab := range a.Contents.TwoColumnBrowseResultsRenderer.Tabs {
+		if strings.HasSuffix(tab.TabRenderer.Endpoint.CommandMetadata.WebCommandMetadata.Url, "/videos") {
+			for _, video := range tab.TabRenderer.Content.RichGridRenderer.Contents {
+				r := video.RichItemRenderer.Content.VideoRenderer
+				if r.VideoId == "" {
+					c.ContinueInputJson, err = constructContinue(video.ContinuationItemRenderer.ContinuationEndpoint.ContinuationCommand.Token)
+					if err != nil {
+						return
+					}
+				} else {
+					videos = append(videos, Video{
+						VideoID:      r.VideoId,
+						Title:        r.Title.Runs[0].Text,
+						Length:       r.LengthText.SimpleText,
+						Views:        r.ViewCountText.SimpleText,
+						Date:         r.PublishedTimeText.SimpleText,
+						ChannelID:    c.channel.ChannelID,
+						NewChannelID: c.channel.NewChannelID,
+					})
+				}
+			}
+		}
+	}
+
+	c.InitialComplete = true
+	return
+}
+
 func (c *ChannelVideosScraper) NextPage() (videos []Video, err error) {
 	var resp *http.Response
 
 	if !c.InitialComplete {
-		var (
-			a       initialData
-			rawjson string
-		)
-		rawjson, err = ExtractInitialData(c.url)
+		videos, err = c.runInitial()
 		if err != nil {
 			return
 		}
-		json.Unmarshal([]byte(rawjson), &a)
-
-		for _, tab := range a.Contents.TwoColumnBrowseResultsRenderer.Tabs {
-			if strings.HasSuffix(tab.TabRenderer.Endpoint.CommandMetadata.WebCommandMetadata.Url, "/videos") {
-				for _, video := range tab.TabRenderer.Content.RichGridRenderer.Contents {
-					r := video.RichItemRenderer.Content.VideoRenderer
-					if r.VideoId == "" {
-						c.ContinueInputJson, err = constructContinue(video.ContinuationItemRenderer.ContinuationEndpoint.ContinuationCommand.Token)
-						if err != nil {
-							return
-						}
-					} else {
-						if c.NewChannelID == "" {
-							c.NewChannelID = a.Header.C4TabbedHeaderRenderer.ChannelHandleText.Runs[0].Text
-						}
-						if c.ChannelID == "" {
-							c.ChannelID = a.Contents.TwoColumnBrowseResultsRenderer.Tabs[0].TabRenderer.Endpoint.BrowseEndpoint.BrowseId
-						}
-
-						videos = append(videos, Video{
-							VideoID:      r.VideoId,
-							Title:        r.Title.Runs[0].Text,
-							Length:       r.LengthText.SimpleText,
-							Views:        r.ViewCountText.SimpleText,
-							Date:         r.PublishedTimeText.SimpleText,
-							ChannelID:    c.ChannelID,
-							NewChannelID: c.NewChannelID,
-						})
-					}
-				}
-			}
-		}
-
-		c.InitialComplete = true
 	} else {
 		resp, err = http.Post("https://www.youtube.com/youtubei/v1/browse", "application/json", bytes.NewReader(c.ContinueInputJson))
 		if err != nil {
@@ -171,8 +228,8 @@ func (c *ChannelVideosScraper) NextPage() (videos []Video, err error) {
 						Length:       r.LengthText.SimpleText,
 						Views:        r.ViewCountText.SimpleText,
 						Date:         r.PublishedTimeText.SimpleText,
-						ChannelID:    c.ChannelID,
-						NewChannelID: c.NewChannelID,
+						ChannelID:    c.channel.ChannelID,
+						NewChannelID: c.channel.NewChannelID,
 					})
 				}
 			}

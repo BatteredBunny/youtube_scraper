@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -95,6 +96,10 @@ func (h *HomeVideosScraper) NextPage() (videos []Video, err error) {
 		rawjson, err = ExtractInitialData(h.url)
 		if err != nil {
 			return
+		}
+
+		if DEBUG {
+			os.WriteFile("home_initial.json", []byte(rawjson), 0777)
 		}
 
 		var a initialData
