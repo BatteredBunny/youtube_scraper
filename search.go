@@ -17,7 +17,7 @@ type searchVideoRenderer struct {
 	Viewers string `rjson:"viewCountText.runs[0].text"`
 
 	Badges      []string `rjson:"badges[].metadataBadgeRenderer.label"`        // example of badge "New", "CC",
-	OwnerBadges []string `rjson:"ownerBadges[].metadataBadgeRenderer.tooltip"` // example of owner badge "Verified"
+	OwnerBadges []string `rjson:"ownerBadges[].metadataBadgeRenderer.tooltip"` // example of owner badge "Verified" or "Official Artist Channel"
 
 	Username            string   `rjson:"ownerText.runs[0].text"`
 	ChannelID           string   `rjson:"ownerText.runs[0].navigationEndpoint.browseEndpoint.browseId"`

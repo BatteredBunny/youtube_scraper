@@ -48,9 +48,9 @@ func (video homeInitialOutputVideo) ToVideo() Video {
 	var authorIsVerifiedArtist bool
 	for _, ownerBadge := range video.OwnerBadges {
 		switch ownerBadge {
-		case "Verified":
+		case BadgeChannelVerified:
 			authorIsVerified = true
-		case "Official Artist Channel":
+		case BadgeChannelVerifiedArtistChannel:
 			authorIsVerifiedArtist = true
 		}
 	}

@@ -29,6 +29,8 @@ func TestLttVideo(t *testing.T) {
 	assert.Assert(!video.WasLive, "marked as was live")
 	assert.Assert(!video.IsLive, "marked as live")
 	assert.NotEquals(video.CommentsCount, "")
+	assert.Assert(video.ChannelIsVerified, "channel isnt verified")
+	assert.Assert(!video.ChannelIsVerifiedArtist, "channel shouldnt be an artist")
 }
 
 func TestPastLttLivestream(t *testing.T) {
@@ -53,6 +55,8 @@ func TestPastLttLivestream(t *testing.T) {
 	assert.NotEquals(video.Description, "", "description is empty")
 	assert.Equals(video.Date, "Jul 7, 2023")
 	assert.NotEquals(video.CommentsCount, "")
+	assert.Assert(video.ChannelIsVerified, "channel isnt verified")
+	assert.Assert(!video.ChannelIsVerifiedArtist, "channel shouldnt be an artist")
 }
 
 func TestLttLivestream(t *testing.T) {
@@ -75,6 +79,42 @@ func TestLttLivestream(t *testing.T) {
 	assert.NotEquals(video.Description, "", "description is empty")
 	assert.NotEquals(video.Date, "")
 	assert.Assert(video.IsLive, "fail: not live")
+	assert.Assert(video.ChannelIsVerified, "channel isnt verified")
+	assert.Assert(!video.ChannelIsVerifiedArtist, "channel shouldnt be an artist")
+}
+
+func TestNotVerified(t *testing.T) {
+	scraper, err := NewVideoScraper("twHFPMoJNXE")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	video := scraper.VideoInfo
+	assert.TestState = t
+	assert.HideSuccess = true
+	assert.Equals(video.ChannelID, "UCwbRile4jo-LcW_PQwmMdBw")
+	assert.Equals(video.VideoID, "twHFPMoJNXE")
+	assert.Equals(video.Username, "Captain KRB")
+	assert.Equals(video.NewChannelID, "@CaptainKRB")
+	assert.Assert(!video.ChannelIsVerified, "channel shouldnt be verified")
+	assert.Assert(!video.ChannelIsVerifiedArtist, "channel shouldnt be an artist")
+}
+
+func TestArtistVideo(t *testing.T) {
+	Debug = true
+	scraper, err := NewVideoScraper("U3ASj1L6_sY")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	video := scraper.VideoInfo
+	assert.TestState = t
+	assert.HideSuccess = true
+	assert.Equals(video.ChannelID, "UCsRM0YB_dabtEPGPTKo-gcw")
+	assert.Equals(video.VideoID, "U3ASj1L6_sY")
+	assert.Equals(video.Title, "Adele - Easy On Me (Official Video)")
+	assert.Assert(!video.ChannelIsVerified, "channel shouldnt be verified")
+	assert.Assert(video.ChannelIsVerifiedArtist, "channel should be an artist")
 }
 
 // TODO: make it actually check if the media url is valid

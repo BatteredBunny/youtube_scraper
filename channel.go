@@ -214,9 +214,9 @@ func genericChannelInitial(initialComplete *bool, url string, channel *Channel, 
 
 	for _, badge := range rawChannel.Badges {
 		switch badge {
-		case "Verified":
+		case BadgeChannelVerified:
 			channel.IsVerified = true
-		case "Official Artist Channel":
+		case BadgeChannelVerifiedArtistChannel:
 			channel.IsVerifiedArtist = true
 		}
 	}

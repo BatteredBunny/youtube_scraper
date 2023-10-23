@@ -50,21 +50,25 @@ type FullVideo struct {
 	ChannelID          string `json:"ChannelID"`
 	NewChannelID       string `json:"NewChannelID"`
 	ChannelSubscribers string `json:"ChannelSubscribers"`
+
+	ChannelIsVerified       bool
+	ChannelIsVerifiedArtist bool
 }
 
 type videoInitialOutput struct {
-	Title              string `rjson:"playerOverlays.playerOverlayRenderer.videoDetails.playerOverlayVideoDetailsRenderer.title.simpleText"`
-	Description        string `rjson:"contents.twoColumnWatchNextResults.results.results.contents[1].videoSecondaryInfoRenderer.attributedDescription.content"`
-	Views              string `rjson:"playerOverlays.playerOverlayRenderer.videoDetails.playerOverlayVideoDetailsRenderer.subtitle.runs[2].text"`
-	IsLive             bool   `rjson:"contents.twoColumnWatchNextResults.results.results.contents[0].videoPrimaryInfoRenderer.viewCount.videoViewCountRenderer.isLive"`
-	Date               string `rjson:"contents.twoColumnWatchNextResults.results.results.contents[0].videoPrimaryInfoRenderer.dateText.simpleText"`
-	Username           string `rjson:"playerOverlays.playerOverlayRenderer.videoDetails.playerOverlayVideoDetailsRenderer.subtitle.runs[0].text"`
-	ChannelID          string `rjson:"contents.twoColumnWatchNextResults.results.results.contents[1].videoSecondaryInfoRenderer.owner.videoOwnerRenderer.title.runs[0].navigationEndpoint.browseEndpoint.browseId"`
-	RawNewChannelID    string `rjson:"contents.twoColumnWatchNextResults.results.results.contents[1].videoSecondaryInfoRenderer.owner.videoOwnerRenderer.title.runs[0].navigationEndpoint.browseEndpoint.canonicalBaseUrl"`
-	Likes              string `rjson:"contents.twoColumnWatchNextResults.results.results.contents[0].videoPrimaryInfoRenderer.videoActions.menuRenderer.topLevelButtons[0].segmentedLikeDislikeButtonRenderer.likeButton.toggleButtonRenderer.defaultText.simpleText"`
-	ChannelSubscribers string `rjson:"contents.twoColumnWatchNextResults.results.results.contents[1].videoSecondaryInfoRenderer.owner.videoOwnerRenderer.subscriberCountText.simpleText"`
-	CommentsCount      string `rjson:"contents.twoColumnWatchNextResults.results.results.contents[2].itemSectionRenderer.contents[0].commentsEntryPointHeaderRenderer.commentCount.simpleText"`
-	Category           string `rjson:"contents.twoColumnWatchNextResults.results.results.contents[1].videoSecondaryInfoRenderer.metadataRowContainer.metadataRowContainerRenderer.rows[0].richMetadataRowRenderer.contents[1].richMetadataRenderer.title.runs[0].text"`
+	Title              string   `rjson:"playerOverlays.playerOverlayRenderer.videoDetails.playerOverlayVideoDetailsRenderer.title.simpleText"`
+	Description        string   `rjson:"contents.twoColumnWatchNextResults.results.results.contents[1].videoSecondaryInfoRenderer.attributedDescription.content"`
+	Views              string   `rjson:"playerOverlays.playerOverlayRenderer.videoDetails.playerOverlayVideoDetailsRenderer.subtitle.runs[2].text"`
+	IsLive             bool     `rjson:"contents.twoColumnWatchNextResults.results.results.contents[0].videoPrimaryInfoRenderer.viewCount.videoViewCountRenderer.isLive"`
+	Date               string   `rjson:"contents.twoColumnWatchNextResults.results.results.contents[0].videoPrimaryInfoRenderer.dateText.simpleText"`
+	Username           string   `rjson:"playerOverlays.playerOverlayRenderer.videoDetails.playerOverlayVideoDetailsRenderer.subtitle.runs[0].text"`
+	ChannelID          string   `rjson:"contents.twoColumnWatchNextResults.results.results.contents[1].videoSecondaryInfoRenderer.owner.videoOwnerRenderer.title.runs[0].navigationEndpoint.browseEndpoint.browseId"`
+	RawNewChannelID    string   `rjson:"contents.twoColumnWatchNextResults.results.results.contents[1].videoSecondaryInfoRenderer.owner.videoOwnerRenderer.title.runs[0].navigationEndpoint.browseEndpoint.canonicalBaseUrl"`
+	Likes              string   `rjson:"contents.twoColumnWatchNextResults.results.results.contents[0].videoPrimaryInfoRenderer.videoActions.menuRenderer.topLevelButtons[0].segmentedLikeDislikeButtonRenderer.likeButton.toggleButtonRenderer.defaultText.simpleText"`
+	ChannelSubscribers string   `rjson:"contents.twoColumnWatchNextResults.results.results.contents[1].videoSecondaryInfoRenderer.owner.videoOwnerRenderer.subscriberCountText.simpleText"`
+	CommentsCount      string   `rjson:"contents.twoColumnWatchNextResults.results.results.contents[2].itemSectionRenderer.contents[0].commentsEntryPointHeaderRenderer.commentCount.simpleText"`
+	Category           string   `rjson:"contents.twoColumnWatchNextResults.results.results.contents[1].videoSecondaryInfoRenderer.metadataRowContainer.metadataRowContainerRenderer.rows[0].richMetadataRowRenderer.contents[1].richMetadataRenderer.title.runs[0].text"`
+	OwnerBadges        []string `rjson:"contents.twoColumnWatchNextResults.results.results.contents[1].videoSecondaryInfoRenderer.owner.videoOwnerRenderer.badges[].metadataBadgeRenderer.tooltip"`
 
 	Tokens []struct {
 		Title string `rjson:"title"`
@@ -100,8 +104,6 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 		return
 	}
 
-	debugFileOutput(body, "video_initial.html")
-
 	v.mediaUrlJs = string(mediaUrlJsRegex.FindSubmatch(body)[1])
 
 	var rawJson string
@@ -132,6 +134,17 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 		}
 	}
 
+	var channelIsVerified bool
+	var channelIsVerifiedArtist bool
+	for _, badge := range output.OwnerBadges {
+		switch badge {
+		case BadgeChannelVerified:
+			channelIsVerified = true
+		case BadgeChannelVerifiedArtistChannel:
+			channelIsVerifiedArtist = true
+		}
+	}
+
 	v.sidebarToken = output.SidebarToken
 
 	v.commentsNewestContinueInputJson, err = continueInput{Continuation: v.commentsNewestToken}.FillGenericInfo().Construct()
@@ -157,20 +170,22 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 	date, isLive := strings.CutPrefix(date, "Started streaming on ")
 
 	v.VideoInfo = FullVideo{
-		VideoID:            id,
-		Title:              output.Title,
-		Description:        output.Description,
-		Views:              strings.TrimSuffix(output.Views, " views"),
-		IsLive:             output.IsLive || isLive,
-		WasLive:            wasLive,
-		Date:               date,
-		Likes:              output.Likes,
-		CommentsCount:      output.CommentsCount,
-		Category:           output.Category,
-		Username:           output.Username,
-		ChannelID:          output.ChannelID,
-		NewChannelID:       strings.TrimPrefix(output.RawNewChannelID, "/"),
-		ChannelSubscribers: strings.TrimSuffix(output.ChannelSubscribers, " subscribers"),
+		VideoID:                 id,
+		Title:                   output.Title,
+		Description:             output.Description,
+		Views:                   strings.TrimSuffix(output.Views, " views"),
+		IsLive:                  output.IsLive || isLive,
+		WasLive:                 wasLive,
+		Date:                    date,
+		Likes:                   output.Likes,
+		CommentsCount:           output.CommentsCount,
+		Category:                output.Category,
+		Username:                output.Username,
+		ChannelID:               output.ChannelID,
+		NewChannelID:            strings.TrimPrefix(output.RawNewChannelID, "/"),
+		ChannelSubscribers:      strings.TrimSuffix(output.ChannelSubscribers, " subscribers"),
+		ChannelIsVerified:       channelIsVerified,
+		ChannelIsVerifiedArtist: channelIsVerifiedArtist,
 	}
 
 	return

@@ -2,10 +2,11 @@ package scraper
 
 import (
 	"bytes"
-	"github.com/ayes-web/rjson"
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/ayes-web/rjson"
 )
 
 type sidebarEntryType = int
@@ -66,8 +67,8 @@ type compactVideoRenderer struct {
 	Date            string   `rjson:"publishedTimeText.simpleText"`
 	Views           string   `rjson:"viewCountText.simpleText"`
 	Length          string   `rjson:"lengthText.simpleText"`
-	Badges          []string `rjson:"badges[].metadataBadgeRenderer.label"`        // example of badge "New"
-	OwnerBadges     []string `rjson:"ownerBadges[].metadataBadgeRenderer.tooltip"` // example of owner badge "Verified"
+	Badges          []string `rjson:"badges[].metadataBadgeRenderer.label"`        // example of badge "New" or "CC"
+	OwnerBadges     []string `rjson:"ownerBadges[].metadataBadgeRenderer.tooltip"` // example of owner badge "Verified" or "Official Artist Channel"
 }
 
 type compactPlaylistRenderer struct {
@@ -101,7 +102,7 @@ func (sidebarEntry rawSidebarEntry) ToSidebarEntry() (s SidebarEntry) {
 		var isNew bool
 		for _, badge := range sidebarEntry.Video.Badges {
 			switch badge {
-			case "New":
+			case VideoBadgeNew:
 				isNew = true
 			}
 		}
@@ -110,9 +111,9 @@ func (sidebarEntry rawSidebarEntry) ToSidebarEntry() (s SidebarEntry) {
 		var authorIsVerified bool
 		for _, ownerBadge := range sidebarEntry.Video.OwnerBadges {
 			switch ownerBadge {
-			case "Verified":
+			case BadgeChannelVerified:
 				authorIsVerified = true
-			case "Official Artist Channel":
+			case BadgeChannelVerifiedArtistChannel:
 				authorIsVerifiedArtist = true
 			}
 		}
