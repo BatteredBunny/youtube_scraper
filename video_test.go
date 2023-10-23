@@ -1,6 +1,7 @@
 package scraper
 
 import (
+	"net/http"
 	"testing"
 
 	assert "github.com/ayes-web/testingassert"
@@ -84,8 +85,7 @@ func TestMediaUrl(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var output ExtractMediaOutput
-	output, err = v.ExtractMediaUrl()
+	output, err := v.ExtractMediaFormats()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,13 +97,19 @@ func TestMediaUrl(t *testing.T) {
 		}
 	}
 
-	var out string
-	out, err = bestMediaFormat.GetMediaUrl(&v)
+	out, err := bestMediaFormat.GetMediaUrl(&v)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	assert.NotEquals(out, "")
+
+	resp, err := http.Get(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equals(resp.StatusCode, http.StatusOK)
 }
 
 func TestMediaUrlDrm(t *testing.T) {
@@ -113,7 +119,7 @@ func TestMediaUrlDrm(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	output, err := v.ExtractMediaUrl()
+	output, err := v.ExtractMediaFormats()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,12 +131,17 @@ func TestMediaUrlDrm(t *testing.T) {
 		}
 	}
 
-	var out string
-	out, err = bestMediaFormat.GetMediaUrl(&v)
+	out, err := bestMediaFormat.GetMediaUrl(&v)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	t.Fatal("TODO:", out)
 	assert.NotEquals(out, "")
+
+	resp, err := http.Get(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equals(resp.StatusCode, http.StatusOK)
 }

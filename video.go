@@ -212,7 +212,7 @@ type ExtractMediaOutput struct {
 	AdaptiveFormats []MediaFormat `rjson:"streamingData.adaptiveFormats"`
 }
 
-func ExtractMediaUrl(id string) (output ExtractMediaOutput, err error) {
+func ExtractMediaFormats(id string) (output ExtractMediaOutput, err error) {
 	var bs []byte
 	bs, err = continueInput{VideoID: id}.FillGenericInfo().Construct()
 	if err != nil {
@@ -236,8 +236,8 @@ func ExtractMediaUrl(id string) (output ExtractMediaOutput, err error) {
 
 	return
 }
-func (v *VideoScraper) ExtractMediaUrl() (output ExtractMediaOutput, err error) {
-	return ExtractMediaUrl(v.VideoInfo.VideoID)
+func (v *VideoScraper) ExtractMediaFormats() (output ExtractMediaOutput, err error) {
+	return ExtractMediaFormats(v.VideoInfo.VideoID)
 }
 
 var funcNameRegex = regexp.MustCompile("\n([^=]+)=function\\(\\w\\){\\w=\\w\\.split\\(\"\"\\);[^. ]+\\.[^( ]+")
