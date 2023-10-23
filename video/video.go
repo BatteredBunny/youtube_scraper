@@ -170,7 +170,7 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 		date = time.Now()
 		log.Println("WARNING: stream/premier is under 24h old, the date is not accurate")
 	} else {
-		date, err = time.Parse(scraper.YoutubeVideoDateLayout, dateText)
+		date, err = time.Parse(YoutubeVideoDateLayout, dateText)
 		if err != nil {
 			return
 		}
@@ -259,7 +259,7 @@ func ExtractMediaFormats(id string) (output ExtractMediaOutput, err error) {
 
 	var resp *http.Response
 	// using the web key
-	resp, err = http.Post("https://youtubei.googleapis.com/youtubei/v1/player?key="+scraper.WebKey, "application/json", bytes.NewReader(bs))
+	resp, err = http.Post("https://youtubei.googleapis.com/youtubei/v1/player?key="+WebKey, "application/json", bytes.NewReader(bs))
 	if err != nil {
 		return
 	}

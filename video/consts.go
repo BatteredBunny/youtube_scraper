@@ -1,4 +1,4 @@
-package scraper
+package video
 
 // Youtube web client api key
 const WebKey = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"
