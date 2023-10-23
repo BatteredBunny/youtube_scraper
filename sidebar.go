@@ -57,39 +57,49 @@ type SidebarRadio struct {
 	ThumbnailVideoID string
 }
 
+type compactVideoRenderer struct {
+	VideoID         string   `rjson:"videoId"`
+	Title           string   `rjson:"title.simpleText"`
+	Username        string   `rjson:"longBylineText.runs[0].text"`
+	ChannelID       string   `rjson:"longBylineText.runs[0].navigationEndpoint.browseEndpoint.browseId"`
+	RawNewChannelID string   `rjson:"longBylineText.runs[0].navigationEndpoint.browseEndpoint.canonicalBaseUrl"` // has "/" at start that must be trimmed
+	Date            string   `rjson:"publishedTimeText.simpleText"`
+	Views           string   `rjson:"viewCountText.simpleText"`
+	Length          string   `rjson:"lengthText.simpleText"`
+	Badges          []string `rjson:"badges[].metadataBadgeRenderer.label"`        // example of badge "New"
+	OwnerBadges     []string `rjson:"ownerBadges[].metadataBadgeRenderer.tooltip"` // example of owner badge "Verified"
+}
+
+type compactPlaylistRenderer struct {
+	PlaylistID      string `rjson:"playlistId"`
+	Title           string `rjson:"title.simpleText"`
+	Username        string `rjson:"shortBylineText.runs[0].text"`
+	ChannelID       string `rjson:"shortBylineText.runs[0].navigationEndpoint.browseEndpoint.browseId"`
+	RawNewChannelID string `rjson:"shortBylineText.runs[0].navigationEndpoint.browseEndpoint.canonicalBaseUrl"` // has "/" at start that must be trimmed
+
+	VideosAmount     string `rjson:"videoCountShortText.simpleText"`
+	ThumbnailVideoID string `rjson:"navigationEndpoint.watchEndpoint.videoId"`
+}
+
+type compactRadioRenderer struct {
+	RadioPlaylistID string `rjson:"playlistId"`
+	Title           string `rjson:"title.simpleText"`
+	SecondaryTitle  string `rjson:"longBylineText.simpleText"`
+
+	ThumbnailVideoID string `rjson:"navigationEndpoint.watchEndpoint.videoId"`
+	VideosAmount     string `rjson:"videoCountShortText.runs[0].text"`
+}
+
 type rawSidebarEntry struct {
-	VideoID         string   `rjson:"compactVideoRenderer.videoId"`
-	Title           string   `rjson:"compactVideoRenderer.title.simpleText"`
-	Username        string   `rjson:"compactVideoRenderer.longBylineText.runs[0].text"`
-	ChannelID       string   `rjson:"compactVideoRenderer.longBylineText.runs[0].navigationEndpoint.browseEndpoint.browseId"`
-	RawNewChannelID string   `rjson:"compactVideoRenderer.longBylineText.runs[0].navigationEndpoint.browseEndpoint.canonicalBaseUrl"`
-	Date            string   `rjson:"compactVideoRenderer.publishedTimeText.simpleText"`
-	Views           string   `rjson:"compactVideoRenderer.viewCountText.simpleText"`
-	Length          string   `rjson:"compactVideoRenderer.lengthText.simpleText"`
-	Badges          []string `rjson:"compactVideoRenderer.badges[].metadataBadgeRenderer.label"`        // example of badge "New"
-	OwnerBadges     []string `rjson:"compactVideoRenderer.ownerBadges[].metadataBadgeRenderer.tooltip"` // example of owner badge "Verified"
-
-	// compactPlaylistRenderer
-	PlaylistID               string `rjson:"compactPlaylistRenderer.playlistId"`
-	PlaylistTitle            string `rjson:"compactPlaylistRenderer.title.simpleText"`
-	PlaylistUsername         string `rjson:"compactPlaylistRenderer.shortBylineText.runs[0].text"`
-	PlaylistChannelID        string `rjson:"compactPlaylistRenderer.shortBylineText.runs[0].navigationEndpoint.browseEndpoint.browseId"`
-	PlaylistRawNewChannelID  string `rjson:"compactPlaylistRenderer.shortBylineText.runs[0].navigationEndpoint.browseEndpoint.canonicalBaseUrl"`
-	PlaylistVideosAmount     string `rjson:"compactPlaylistRenderer.videoCountShortText.simpleText"`
-	PlaylistThumbnailVideoID string `rjson:"compactPlaylistRenderer.navigationEndpoint.watchEndpoint.videoId"`
-
-	// compactRadioRenderer
-	RadioPlaylistID       string `rjson:"compactRadioRenderer.playlistId"`
-	RadioTitle            string `rjson:"compactRadioRenderer.title.simpleText"`
-	RadioSecondaryTitle   string `rjson:"compactRadioRenderer.longBylineText.simpleText"`
-	RadioThumbnailVideoID string `rjson:"compactRadioRenderer.navigationEndpoint.watchEndpoint.videoId"`
-	RadioVideosAmount     string `rjson:"compactRadioRenderer.videoCountShortText.runs[0].text"`
+	Video    compactVideoRenderer    `rjson:"compactVideoRenderer"`
+	Playlist compactPlaylistRenderer `rjson:"compactPlaylistRenderer"`
+	Radio    compactRadioRenderer    `rjson:"compactRadioRenderer"`
 }
 
 func (sidebarEntry rawSidebarEntry) ToSidebarEntry() (s SidebarEntry) {
-	if sidebarEntry.VideoID != "" {
+	if sidebarEntry.Video.VideoID != "" {
 		var isNew bool
-		for _, badge := range sidebarEntry.Badges {
+		for _, badge := range sidebarEntry.Video.Badges {
 			switch badge {
 			case "New":
 				isNew = true
@@ -98,7 +108,7 @@ func (sidebarEntry rawSidebarEntry) ToSidebarEntry() (s SidebarEntry) {
 
 		var authorIsVerifiedArtist bool
 		var authorIsVerified bool
-		for _, ownerBadge := range sidebarEntry.OwnerBadges {
+		for _, ownerBadge := range sidebarEntry.Video.OwnerBadges {
 			switch ownerBadge {
 			case "Verified":
 				authorIsVerified = true
@@ -107,47 +117,47 @@ func (sidebarEntry rawSidebarEntry) ToSidebarEntry() (s SidebarEntry) {
 			}
 		}
 
-		date, wasLive := strings.CutPrefix(sidebarEntry.Date, "Streamed ")
+		date, wasLive := strings.CutPrefix(sidebarEntry.Video.Date, "Streamed ")
 		s = SidebarEntry{
 			Type: SidebarEntryVideo,
 			Entry: SidebarVideo{
-				VideoID:                sidebarEntry.VideoID,
-				Title:                  sidebarEntry.Title,
-				Username:               sidebarEntry.Username,
-				ChannelID:              sidebarEntry.ChannelID,
-				RawNewChannelID:        strings.TrimPrefix(sidebarEntry.RawNewChannelID, "/"),
+				VideoID:                sidebarEntry.Video.VideoID,
+				Title:                  sidebarEntry.Video.Title,
+				Username:               sidebarEntry.Video.Username,
+				ChannelID:              sidebarEntry.Video.ChannelID,
+				RawNewChannelID:        strings.TrimPrefix(sidebarEntry.Video.RawNewChannelID, "/"),
 				Date:                   date,
-				Views:                  sidebarEntry.Views,
-				Length:                 sidebarEntry.Length,
+				Views:                  sidebarEntry.Video.Views,
+				Length:                 sidebarEntry.Video.Length,
 				AuthorIsVerified:       authorIsVerified,
 				AuthorIsVerifiedArtist: authorIsVerifiedArtist,
 				IsNew:                  isNew,
-				IsLive:                 len(sidebarEntry.Date) == 0,
+				IsLive:                 len(sidebarEntry.Video.Date) == 0,
 				WasLive:                wasLive,
 			},
 		}
-	} else if sidebarEntry.PlaylistID != "" {
+	} else if sidebarEntry.Playlist.PlaylistID != "" {
 		s = SidebarEntry{
 			Type: SidebarEntryPlaylist,
 			Entry: SidebarPlaylist{
-				PlaylistID:       sidebarEntry.PlaylistID,
-				Title:            sidebarEntry.PlaylistTitle,
-				Username:         sidebarEntry.PlaylistUsername,
-				ChannelId:        sidebarEntry.PlaylistChannelID,
-				NewChannelID:     strings.TrimPrefix(sidebarEntry.PlaylistRawNewChannelID, "/"),
-				VideosAmount:     sidebarEntry.PlaylistVideosAmount,
-				ThumbnailVideoID: sidebarEntry.PlaylistThumbnailVideoID,
+				PlaylistID:       sidebarEntry.Playlist.PlaylistID,
+				Title:            sidebarEntry.Playlist.Title,
+				Username:         sidebarEntry.Playlist.Username,
+				ChannelId:        sidebarEntry.Playlist.ChannelID,
+				NewChannelID:     strings.TrimPrefix(sidebarEntry.Playlist.RawNewChannelID, "/"),
+				VideosAmount:     sidebarEntry.Playlist.VideosAmount,
+				ThumbnailVideoID: sidebarEntry.Playlist.ThumbnailVideoID,
 			},
 		}
-	} else if sidebarEntry.RadioPlaylistID != "" {
+	} else if sidebarEntry.Radio.RadioPlaylistID != "" {
 		s = SidebarEntry{
 			Type: SidebarEntryRadio,
 			Entry: SidebarRadio{
-				PlaylistID:       sidebarEntry.RadioPlaylistID,
-				Title:            sidebarEntry.RadioTitle,
-				SecondaryTitle:   sidebarEntry.RadioSecondaryTitle,
-				VideosAmount:     sidebarEntry.RadioVideosAmount,
-				ThumbnailVideoID: sidebarEntry.RadioThumbnailVideoID,
+				PlaylistID:       sidebarEntry.Radio.RadioPlaylistID,
+				Title:            sidebarEntry.Radio.Title,
+				SecondaryTitle:   sidebarEntry.Radio.SecondaryTitle,
+				VideosAmount:     sidebarEntry.Radio.VideosAmount,
+				ThumbnailVideoID: sidebarEntry.Radio.ThumbnailVideoID,
 			},
 		}
 	}
@@ -174,7 +184,7 @@ func (v *VideoScraper) NextSidebarVideosPage() (sidebarEntries []SidebarEntry, e
 		return
 	}
 
-	debugFileOutput(body, "sidebarvideos_%s.json", v.sidebarToken)
+	debugFileOutput(body, "sidebar_videos_%s.json", v.sidebarToken)
 
 	var output sidebarOutput
 	if err = rjson.Unmarshal(body, &output); err != nil {
@@ -188,11 +198,9 @@ func (v *VideoScraper) NextSidebarVideosPage() (sidebarEntries []SidebarEntry, e
 	}
 
 	for _, sidebarEntry := range output.SidebarEntries {
-		if sidebarEntry.VideoID == "" && sidebarEntry.PlaylistID == "" && sidebarEntry.RadioPlaylistID == "" {
-			continue
+		if sidebarEntry.Video.VideoID != "" || sidebarEntry.Playlist.PlaylistID != "" || sidebarEntry.Radio.RadioPlaylistID != "" {
+			sidebarEntries = append(sidebarEntries, sidebarEntry.ToSidebarEntry())
 		}
-
-		sidebarEntries = append(sidebarEntries, sidebarEntry.ToSidebarEntry())
 	}
 
 	return

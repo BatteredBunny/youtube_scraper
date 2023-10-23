@@ -7,7 +7,10 @@ import (
 )
 
 func TestChannelVideosScraper(t *testing.T) {
-	c := scraper.NewChannelScraper("@TomScottGo")
+	c, err := scraper.NewChannelScraper("@TomScottGo")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	var printedChannel bool
 	for {
@@ -37,7 +40,10 @@ func TestChannelVideosScraper(t *testing.T) {
 }
 
 func TestChannelStreamsScraper(t *testing.T) {
-	c := scraper.NewChannelScraper("@LinusTechTips")
+	c, err := scraper.NewChannelScraper("@LinusTechTips")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	var printedChannel bool
 	for {

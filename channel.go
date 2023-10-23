@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -26,15 +27,17 @@ type Video struct {
 	VideoID string `json:"VideoID"`
 	Title   string `json:"Title"`
 
-	// 7:03
-	Length string `json:"Length"`
+	// Will be empty if its livestream
+	// example value 7:03
+	Length string `json:"Length,omitempty"`
 
 	/*
+		Will be empty if its livestream
 		Examples
 			- 100 views
 			- 6,396,043 views
 	*/
-	Views string `json:"Views"`
+	Views string `json:"Views,omitempty"`
 
 	/*
 		Will be empty if its livestream
@@ -66,13 +69,13 @@ type Video struct {
 			- 2-59 seconds ago
 			- 1 second ago
 	*/
-	Date string `json:"Date"`
+	Date string `json:"Date,omitempty"`
 
 	Username     string `json:"Username"`
 	ChannelID    string `json:"ChannelID"`
 	NewChannelID string `json:"NewChannelID"` // @username
 
-	Viewers                string `json:"Viewers"`
+	Viewers                string `json:"Viewers,omitempty"` // Empty if it's not a livestream
 	IsLive                 bool   `json:"IsLive"`
 	WasLive                bool   `json:"WasLive"`
 	AuthorIsVerified       bool   `json:"AuthorIsVerified"`
@@ -80,8 +83,10 @@ type Video struct {
 }
 
 type ChannelScraper struct {
-	baseChannelUrl string
-	channel        Channel
+	//baseChannelUrl *url.URL
+	streamsUrl string
+	videosUrl  string
+	channel    Channel
 
 	videosInitialComplete   bool
 	videosContinueInputJson []byte
@@ -91,14 +96,29 @@ type ChannelScraper struct {
 }
 
 // NewChannelScraper accepts normal id or @username
-func NewChannelScraper(id string) (c ChannelScraper) {
-	c.baseChannelUrl = "https://www.youtube.com/"
+func NewChannelScraper(id string) (c ChannelScraper, err error) {
+	rawUrl, err := url.Parse("https://www.youtube.com/")
+	if err != nil {
+		return
+	}
 
 	if strings.HasPrefix(id, "@") {
-		c.baseChannelUrl += id
+		rawUrl = rawUrl.JoinPath(id)
 	} else {
-		c.baseChannelUrl += "channel/" + id
+		rawUrl = rawUrl.JoinPath("channel", id)
 	}
+
+	rawVideosUrl := rawUrl.JoinPath("videos")
+	q := rawVideosUrl.Query()
+	q.Set("hl", "en")
+	rawVideosUrl.RawQuery = q.Encode()
+	c.videosUrl = rawVideosUrl.String()
+
+	rawStreamsUrl := rawUrl.JoinPath("streams")
+	q = rawStreamsUrl.Query()
+	q.Set("hl", "en")
+	rawStreamsUrl.RawQuery = q.Encode()
+	c.streamsUrl = rawStreamsUrl.String()
 
 	return
 }
@@ -125,16 +145,17 @@ type channelInitialAccount struct {
 	Badges          []string `rjson:"header.c4TabbedHeaderRenderer.badges[].metadataBadgeRenderer.tooltip"`
 }
 
-type channelInitialVideo struct {
-	VideoID string `rjson:"richItemRenderer.content.videoRenderer.videoId"`
-	Title   string `rjson:"richItemRenderer.content.videoRenderer.title.runs[0].text"`
-	Length  string `rjson:"richItemRenderer.content.videoRenderer.lengthText.simpleText"`
-	Views   string `rjson:"richItemRenderer.content.videoRenderer.viewCountText.simpleText"`
-	Viewers string `rjson:"richItemRenderer.content.videoRenderer.viewCountText.runs[0].text"`
-	Date    string `rjson:"richItemRenderer.content.videoRenderer.publishedTimeText.simpleText"`
+// videoRenderer json type
+type videoRenderer struct {
+	VideoID string `rjson:"videoId"`
+	Title   string `rjson:"title.runs[0].text"`
+	Length  string `rjson:"lengthText.simpleText"`
+	Views   string `rjson:"viewCountText.simpleText"`
+	Viewers string `rjson:"viewCountText.runs[0].text"`
+	Date    string `rjson:"publishedTimeText.simpleText"`
 }
 
-func (video channelInitialVideo) ToVideo(channel *Channel) Video {
+func (video videoRenderer) ToVideo(channel *Channel) Video {
 	date, wasLive := strings.CutPrefix(video.Date, "Streamed ")
 	return Video{
 		VideoID:                video.VideoID,
@@ -154,28 +175,24 @@ func (video channelInitialVideo) ToVideo(channel *Channel) Video {
 
 type channelVideosInitialOutput struct {
 	Channel                 channelInitialAccount `rjson:"."`
-	Videos                  []channelInitialVideo `rjson:"contents.twoColumnBrowseResultsRenderer.tabs[1].tabRenderer.content.richGridRenderer.contents"`
+	Videos                  []videoRenderer       `rjson:"contents.twoColumnBrowseResultsRenderer.tabs[1].tabRenderer.content.richGridRenderer.contents[].richItemRenderer.content.videoRenderer"`
 	VideosContinuationToken string                `rjson:"contents.twoColumnBrowseResultsRenderer.tabs[1].tabRenderer.content.richGridRenderer.contents[-].continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
 }
 type channelStreamsInitialOutput struct {
 	Channel channelInitialAccount `rjson:"."`
 	Tabs    []struct {
-		Title  string                `rjson:"tabRenderer.title"`
-		Token  string                `rjson:"tabRenderer.content.richGridRenderer.contents[-].continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
-		Videos []channelInitialVideo `rjson:"tabRenderer.content.richGridRenderer.contents"`
-	} `rjson:"contents.twoColumnBrowseResultsRenderer.tabs"`
+		Title  string          `rjson:"title"`
+		Token  string          `rjson:"content.richGridRenderer.contents[-].continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
+		Videos []videoRenderer `rjson:"content.richGridRenderer.contents[].richItemRenderer.content.videoRenderer"`
+	} `rjson:"contents.twoColumnBrowseResultsRenderer.tabs[].tabRenderer"`
 }
 
-type channelVideosContinueOutput struct {
-	Videos        []channelInitialVideo `rjson:"onResponseReceivedActions[0].appendContinuationItemsAction.continuationItems"`
-	ContinueToken string                `rjson:"onResponseReceivedActions[0].appendContinuationItemsAction.continuationItems[-]continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
-}
-type channelStreamsContinueOutput struct {
-	Videos        []channelInitialVideo `rjson:"onResponseReceivedActions[0].appendContinuationItemsAction.continuationItems"`
-	ContinueToken string                `rjson:"onResponseReceivedActions[0].appendContinuationItemsAction.continuationItems[-]continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
+type channelContinueOutput struct {
+	Videos        []videoRenderer `rjson:"onResponseReceivedActions[0].appendContinuationItemsAction.continuationItems[].richItemRenderer.content.videoRenderer"`
+	ContinueToken string          `rjson:"onResponseReceivedActions[0].appendContinuationItemsAction.continuationItems[-]continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
 }
 
-func genericChannelInitial(initialComplete *bool, url string, channel *Channel, continueInputJson *[]byte, outputGeneric func(rawJson []byte) (rawChannel channelInitialAccount, rawVideos []channelInitialVideo, rawToken string, err error)) (videos []Video, err error) {
+func genericChannelInitial(initialComplete *bool, url string, channel *Channel, continueInputJson *[]byte, outputGeneric func(rawJson []byte) (rawChannel channelInitialAccount, rawVideos []videoRenderer, rawToken string, err error)) (videos []Video, err error) {
 	var rawJson string
 	rawJson, err = extractInitialData(url)
 	if err != nil {
@@ -215,18 +232,16 @@ func genericChannelInitial(initialComplete *bool, url string, channel *Channel, 
 	}
 
 	for _, video := range rawVideos {
-		if video.VideoID == "" {
-			continue
+		if video.VideoID != "" {
+			videos = append(videos, video.ToVideo(channel))
 		}
-
-		videos = append(videos, video.ToVideo(channel))
 	}
 
 	*initialComplete = true
 	return
 }
 
-func genericChannelPage(channel *Channel, continueInputJson *[]byte, outputGeneric func(rawJson []byte) (rawToken string, rawVideos []channelInitialVideo, err error)) (videos []Video, err error) {
+func genericChannelPage(channel *Channel, continueInputJson *[]byte, outputGeneric func(rawJson []byte) (rawToken string, rawVideos []videoRenderer, err error)) (videos []Video, err error) {
 	var resp *http.Response
 	resp, err = http.Post("https://www.youtube.com/youtubei/v1/browse", "application/json", bytes.NewReader(*continueInputJson))
 	if err != nil {
@@ -251,11 +266,9 @@ func genericChannelPage(channel *Channel, continueInputJson *[]byte, outputGener
 	}
 
 	for _, video := range rawVideos {
-		if video.VideoID == "" {
-			continue
+		if video.VideoID != "" {
+			videos = append(videos, video.ToVideo(channel))
 		}
-
-		videos = append(videos, video.ToVideo(channel))
 	}
 
 	return
@@ -264,7 +277,7 @@ func genericChannelPage(channel *Channel, continueInputJson *[]byte, outputGener
 // NextVideosPage scrapes pages of the `/videos` endpoint on channel page
 func (c *ChannelScraper) NextVideosPage() (videos []Video, err error) {
 	if !c.videosInitialComplete {
-		return genericChannelInitial(&c.videosInitialComplete, c.baseChannelUrl+"/videos?hl=en", &c.channel, &c.videosContinueInputJson, func(rawJson []byte) (rawChannel channelInitialAccount, rawVideos []channelInitialVideo, rawToken string, err error) {
+		return genericChannelInitial(&c.videosInitialComplete, c.videosUrl, &c.channel, &c.videosContinueInputJson, func(rawJson []byte) (rawChannel channelInitialAccount, rawVideos []videoRenderer, rawToken string, err error) {
 			debugFileOutput(rawJson, "channel_videos_initial.json")
 
 			var output channelVideosInitialOutput
@@ -285,10 +298,10 @@ func (c *ChannelScraper) NextVideosPage() (videos []Video, err error) {
 			return
 		})
 	} else {
-		return genericChannelPage(&c.channel, &c.videosContinueInputJson, func(rawJson []byte) (rawToken string, rawVideos []channelInitialVideo, err error) {
+		return genericChannelPage(&c.channel, &c.videosContinueInputJson, func(rawJson []byte) (rawToken string, rawVideos []videoRenderer, err error) {
 			debugFileOutput(rawJson, "channel_videos.json")
 
-			var output channelVideosContinueOutput
+			var output channelContinueOutput
 			if err = rjson.Unmarshal(rawJson, &output); err != nil {
 				if errors.Unwrap(err) == rjson.ErrCantFindField {
 					err = nil
@@ -306,7 +319,7 @@ func (c *ChannelScraper) NextVideosPage() (videos []Video, err error) {
 // NextStreamsPage scrapes pages of the `/streams` endpoint on channel page
 func (c *ChannelScraper) NextStreamsPage() (videos []Video, err error) {
 	if !c.streamsInitialComplete {
-		videos, err = genericChannelInitial(&c.streamsInitialComplete, c.baseChannelUrl+"/streams?hl=en", &c.channel, &c.streamsContinueInputJson, func(rawJson []byte) (rawChannel channelInitialAccount, rawVideos []channelInitialVideo, rawToken string, err error) {
+		videos, err = genericChannelInitial(&c.streamsInitialComplete, c.streamsUrl, &c.channel, &c.streamsContinueInputJson, func(rawJson []byte) (rawChannel channelInitialAccount, rawVideos []videoRenderer, rawToken string, err error) {
 			debugFileOutput(rawJson, "channel_streams_initial.json")
 
 			var output channelStreamsInitialOutput
@@ -344,10 +357,10 @@ func (c *ChannelScraper) NextStreamsPage() (videos []Video, err error) {
 	} else {
 		// fix for pagination api sometimes not working
 		for i := 0; i < 3; i++ {
-			videos, err = genericChannelPage(&c.channel, &c.streamsContinueInputJson, func(rawJson []byte) (rawToken string, rawVideos []channelInitialVideo, err error) {
+			videos, err = genericChannelPage(&c.channel, &c.streamsContinueInputJson, func(rawJson []byte) (rawToken string, rawVideos []videoRenderer, err error) {
 				debugFileOutput(rawJson, "channel_streams.json")
 
-				var output channelStreamsContinueOutput
+				var output channelContinueOutput
 				if err = rjson.Unmarshal(rawJson, &output); err != nil {
 					if errors.Unwrap(err) == rjson.ErrCantFindField {
 						err = nil

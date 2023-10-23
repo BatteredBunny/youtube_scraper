@@ -1,19 +1,25 @@
 package examples
 
 import (
-	"encoding/json"
 	scraper "git.catnip.ee/miisu/youtube_scraper"
 	"testing"
 )
 
 func TestPlaylist(t *testing.T) {
-	p := scraper.NewPlaylistScraper("PLMC9KNkIncKtPzgY-5rmhvj7fax8fdxoj")
-	p.GetPlaylistInfo()
+	p, err := scraper.NewPlaylistScraper("PLMC9KNkIncKtPzgY-5rmhvj7fax8fdxoj")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	info, err := p.GetPlaylistInfo()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	handlePlaylistVideos(info.Videos, t)
 
 	var (
 		videos []scraper.PlaylistVideo
-		err    error
-		r      []byte
 	)
 	for {
 		videos, err = p.NextPage()
@@ -23,13 +29,13 @@ func TestPlaylist(t *testing.T) {
 			break
 		}
 
-		for _, video := range videos {
-			r, err = json.MarshalIndent(video, "", "	")
-			if err != nil {
-				t.Fatal(err)
-			}
-			t.Log("video: ", string(r))
-		}
-		t.Log("-----------------")
+		handlePlaylistVideos(videos, t)
 	}
+}
+
+func handlePlaylistVideos(videos []scraper.PlaylistVideo, t *testing.T) {
+	for _, video := range videos {
+		t.Logf("videoID: %s, pos: %d", video.VideoID, video.PlaylistPosition)
+	}
+	t.Log("-----------------")
 }

@@ -28,6 +28,7 @@ func NewHomeVideosScraper() (h HomeVideosScraper) {
 	return
 }
 
+// home has a modified version of videoRenderer with few additional lines of info, maybe best to merge them fully?
 type homeInitialOutputVideo struct {
 	VideoID         string `rjson:"videoId"`
 	Title           string `rjson:"title.runs[0].text"`
@@ -37,7 +38,7 @@ type homeInitialOutputVideo struct {
 	Date            string `rjson:"publishedTimeText.simpleText"`
 	Username        string `rjson:"longBylineText.runs[0].text"`
 	ChannelID       string `rjson:"longBylineText.runs[0].navigationEndpoint.browseEndpoint.browseId"`
-	RawNewChannelID string `rjson:"longBylineText.runs[0].navigationEndpoint.browseEndpoint.canonicalBaseUrl"`
+	RawNewChannelID string `rjson:"longBylineText.runs[0].navigationEndpoint.browseEndpoint.canonicalBaseUrl"` // comes with "/" at start, make sure to trim it
 
 	OwnerBadges []string `rjson:"ownerBadges[].metadataBadgeRenderer.tooltip"`
 }
@@ -137,11 +138,7 @@ func (h *HomeVideosScraper) runInitial() (videos []Video, err error) {
 			//		fmt.Println(gen.VideoInfo)
 			//	}
 			//}
-		} else {
-			if video.Video.VideoID == "" {
-				continue
-			}
-
+		} else if video.Video.VideoID != "" {
 			videos = append(videos, video.Video.ToVideo())
 		}
 	}
@@ -192,11 +189,9 @@ func (h *HomeVideosScraper) NextPage() (videos []Video, err error) {
 		}
 
 		for _, video := range output.Videos {
-			if video.VideoID == "" {
-				continue
+			if video.VideoID != "" {
+				videos = append(videos, video.ToVideo())
 			}
-
-			videos = append(videos, video.ToVideo())
 		}
 	}
 

@@ -31,17 +31,20 @@ func (c *Comment) HasSubComments() bool {
 	return c.repliesToken != ""
 }
 
+// youtube json commentRenderer type
+type commentRenderer struct {
+	NewChannelID  string   `rjson:"authorText.simpleText"`
+	CommentID     string   `rjson:"commentId"`
+	Content       []string `rjson:"contentText.runs[].text"`
+	PublishedTime string   `rjson:"publishedTimeText.runs[0].text"` // ends with "(edited)" if the comment has been edited
+	LikeAmount    string   `rjson:"voteCount.simpleText"`           // 3K
+	Pinned        []string `rjson:"pinnedCommentBadge.pinnedCommentBadgeRenderer.label.runs[].text"`
+	IsHearted     bool     `rjson:"actionButtons.commentActionButtonsRenderer.creatorHeart.creatorHeartRenderer.isHearted"`
+}
+
 type subCommentsContinueOutput struct {
-	Comments []struct {
-		NewChannelID  string   `rjson:"commentRenderer.authorText.simpleText"`
-		CommentID     string   `rjson:"commentRenderer.commentId"`
-		Content       []string `rjson:"commentRenderer.contentText.runs[].text"`
-		PublishedTime string   `rjson:"commentRenderer.publishedTimeText.runs[0].text"` // ends with "(edited)" if the comment has been edited
-		LikeAmount    string   `rjson:"commentRenderer.voteCount.simpleText"`           // 3K
-		Pinned        []string `rjson:"commentRenderer.pinnedCommentBadge.pinnedCommentBadgeRenderer.label.runs[].text"`
-		IsHearted     bool     `rjson:"commentRenderer.actionButtons.commentActionButtonsRenderer.creatorHeart.creatorHeartRenderer.isHearted"`
-	} `rjson:"onResponseReceivedEndpoints[0]appendContinuationItemsAction.continuationItems"`
-	ContinueToken string `rjson:"onResponseReceivedEndpoints[0]appendContinuationItemsAction.continuationItems[-].continuationItemRenderer.button.buttonRenderer.command.continuationCommand.token"`
+	Comments      []commentRenderer `rjson:"onResponseReceivedEndpoints[0]appendContinuationItemsAction.continuationItems[].commentRenderer"`
+	ContinueToken string            `rjson:"onResponseReceivedEndpoints[0]appendContinuationItemsAction.continuationItems[-].continuationItemRenderer.button.buttonRenderer.command.continuationCommand.token"`
 }
 
 // NextSubCommentPage returns comment replies in chunks. Check with HasSubComments if there are replies
@@ -79,45 +82,38 @@ func (c *Comment) NextSubCommentPage() (comments []Comment, err error) {
 	}
 
 	for _, comment := range output.Comments {
-		if comment.CommentID == "" {
-			continue
+		if comment.CommentID != "" {
+			publishedTime, wasEdited := strings.CutSuffix(comment.PublishedTime, " (edited)")
+			comments = append(comments, Comment{
+				NewChannelID:  comment.NewChannelID,
+				CommentID:     comment.CommentID,
+				Content:       strings.Join(comment.Content, ""),
+				PublishedTime: publishedTime,
+				WasEdited:     wasEdited,
+				LikeAmount:    comment.LikeAmount,
+				PinnedBy:      strings.Join(comment.Pinned, ""),
+				IsPinned:      len(comment.Pinned) > 0,
+				IsHearted:     comment.IsHearted,
+			})
 		}
-
-		publishedTime, wasEdited := strings.CutSuffix(comment.PublishedTime, " (edited)")
-		comments = append(comments, Comment{
-			NewChannelID:  comment.NewChannelID,
-			CommentID:     comment.CommentID,
-			Content:       strings.Join(comment.Content, ""),
-			PublishedTime: publishedTime,
-			WasEdited:     wasEdited,
-			LikeAmount:    comment.LikeAmount,
-			PinnedBy:      strings.Join(comment.Pinned, ""),
-			IsPinned:      len(comment.Pinned) > 0,
-			IsHearted:     comment.IsHearted,
-		})
 	}
 
 	return
 }
 
+// commentThreadRenderer json type
 type commentContinueOutputComment struct {
-	NewChannelID  string   `rjson:"commentThreadRenderer.comment.commentRenderer.authorText.simpleText"`
-	CommentID     string   `rjson:"commentThreadRenderer.comment.commentRenderer.commentId"`
-	Content       []string `rjson:"commentThreadRenderer.comment.commentRenderer.contentText.runs[].text"`
-	PublishedTime string   `rjson:"commentThreadRenderer.comment.commentRenderer.publishedTimeText.runs[0].text"` // ends with "(edited)" if the comment has been edited
-	LikeAmount    string   `rjson:"commentThreadRenderer.comment.commentRenderer.voteCount.simpleText"`           // 3K
-	Pinned        []string `rjson:"commentThreadRenderer.comment.commentRenderer.pinnedCommentBadge.pinnedCommentBadgeRenderer.label.runs[].text"`
-	IsHearted     bool     `rjson:"commentThreadRenderer.comment.commentRenderer.actionButtons.commentActionButtonsRenderer.creatorHeart.creatorHeartRenderer.isHearted"`
-	RepliesAmount string   `rjson:"commentThreadRenderer.replies.commentRepliesRenderer.viewReplies.buttonRenderer.text.runs[0].text"`
-	RepliesToken  string   `rjson:"commentThreadRenderer.replies.commentRepliesRenderer.contents[-].continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
+	Comment       commentRenderer `rjson:"comment.commentRenderer"`
+	RepliesAmount string          `rjson:"replies.commentRepliesRenderer.viewReplies.buttonRenderer.text.runs[0].text"`
+	RepliesToken  string          `rjson:"replies.commentRepliesRenderer.contents[-].continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
 }
 
 type commentsContinueOutputInitial struct {
-	Comments      []commentContinueOutputComment `rjson:"onResponseReceivedEndpoints[1]reloadContinuationItemsCommand.continuationItems"`
+	Comments      []commentContinueOutputComment `rjson:"onResponseReceivedEndpoints[1]reloadContinuationItemsCommand.continuationItems[].commentThreadRenderer"`
 	ContinueToken string                         `rjson:"onResponseReceivedEndpoints[1]reloadContinuationItemsCommand.continuationItems[-]continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
 }
 type commentsContinueOutput struct {
-	Comments      []commentContinueOutputComment `rjson:"onResponseReceivedEndpoints[0]appendContinuationItemsAction.continuationItems"`
+	Comments      []commentContinueOutputComment `rjson:"onResponseReceivedEndpoints[0]appendContinuationItemsAction.continuationItems[].commentThreadRenderer"`
 	ContinueToken string                         `rjson:"onResponseReceivedEndpoints[0]appendContinuationItemsAction.continuationItems[-]continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
 }
 
@@ -147,7 +143,7 @@ func genericNextCommentsPage(token *string, continueInputJson *[]byte, outputGen
 	}
 
 	for _, comment := range rawComments {
-		if comment.CommentID == "" {
+		if comment.Comment.CommentID == "" {
 			continue
 		}
 
@@ -163,17 +159,17 @@ func genericNextCommentsPage(token *string, continueInputJson *[]byte, outputGen
 			}
 		}
 
-		publishedTime, wasEdited := strings.CutSuffix(comment.PublishedTime, " (edited)")
+		publishedTime, wasEdited := strings.CutSuffix(comment.Comment.PublishedTime, " (edited)")
 		comments = append(comments, Comment{
-			NewChannelID:             comment.NewChannelID,
-			CommentID:                comment.CommentID,
-			Content:                  strings.Join(comment.Content, ""),
+			NewChannelID:             comment.Comment.NewChannelID,
+			CommentID:                comment.Comment.CommentID,
+			Content:                  strings.Join(comment.Comment.Content, ""),
 			PublishedTime:            publishedTime,
 			WasEdited:                wasEdited,
-			LikeAmount:               comment.LikeAmount,
-			PinnedBy:                 strings.Join(comment.Pinned, ""),
-			IsPinned:                 len(comment.Pinned) > 0,
-			IsHearted:                comment.IsHearted,
+			LikeAmount:               comment.Comment.LikeAmount,
+			PinnedBy:                 strings.Join(comment.Comment.Pinned, ""),
+			IsPinned:                 len(comment.Comment.Pinned) > 0,
+			IsHearted:                comment.Comment.IsHearted,
 			RepliesAmount:            strings.TrimSuffix(strings.TrimSuffix(comment.RepliesAmount, " replies"), " reply"),
 			repliesToken:             repliesToken,
 			repliesContinueInputJson: repliesContinueInputJson,

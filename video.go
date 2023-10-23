@@ -78,7 +78,16 @@ type videoInitialOutput struct {
 var mediaUrlJsRegex = regexp.MustCompile(`src="(/s/player/[^\\/]+/player_ias[^\\/]+/en_US/base.js)"`)
 
 func NewVideoScraper(id string) (v VideoScraper, err error) {
-	v.url = fmt.Sprintf("https://www.youtube.com/watch?v=%s&hl=en", id)
+	rawUrl, err := url.Parse("https://www.youtube.com/watch")
+	if err != nil {
+		return
+	}
+
+	q := rawUrl.Query()
+	q.Set("v", id)
+	q.Set("hl", "en")
+	rawUrl.RawQuery = q.Encode()
+	v.url = rawUrl.String()
 
 	resp, err := http.Get(v.url)
 	if err != nil {
@@ -139,11 +148,9 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 	}
 
 	for _, sidebarEntry := range output.SidebarEntries {
-		if sidebarEntry.VideoID == "" && sidebarEntry.PlaylistID == "" && sidebarEntry.RadioPlaylistID == "" {
-			continue
+		if sidebarEntry.Video.VideoID != "" || sidebarEntry.Playlist.PlaylistID != "" || sidebarEntry.Radio.RadioPlaylistID != "" {
+			v.InitialSidebarEntries = append(v.InitialSidebarEntries, sidebarEntry.ToSidebarEntry())
 		}
-
-		v.InitialSidebarEntries = append(v.InitialSidebarEntries, sidebarEntry.ToSidebarEntry())
 	}
 
 	date, wasLive := strings.CutPrefix(output.Date, "Streamed live on ")
@@ -221,7 +228,7 @@ func ExtractMediaFormats(id string) (output ExtractMediaOutput, err error) {
 
 	var resp *http.Response
 	// using the web key
-	resp, err = http.Post("https://youtubei.googleapis.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8", "application/json", bytes.NewReader(bs))
+	resp, err = http.Post("https://youtubei.googleapis.com/youtubei/v1/player?key="+webKey, "application/json", bytes.NewReader(bs))
 	if err != nil {
 		return
 	}

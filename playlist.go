@@ -2,10 +2,10 @@ package scraper
 
 import (
 	"bytes"
-	"fmt"
 	"github.com/ayes-web/rjson"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -19,12 +19,23 @@ type PlaylistScraper struct {
 	initialDone bool
 }
 
-func NewPlaylistScraper(playlistId string) (p PlaylistScraper) {
-	p.url = fmt.Sprintf("https://www.youtube.com/playlist?list=%s&hl=en", playlistId)
+func NewPlaylistScraper(playlistId string) (p PlaylistScraper, err error) {
+	rawUrl, err := url.Parse("https://www.youtube.com/playlist")
+	if err != nil {
+		return
+	}
+
+	q := rawUrl.Query()
+	q.Set("list", playlistId)
+	q.Set("hl", "en")
+	rawUrl.RawQuery = q.Encode()
+
+	p.url = rawUrl.String()
 
 	return
 }
 
+// youtube json type playlistVideoRenderer
 type PlaylistVideo struct {
 	VideoID              string `rjson:"videoId"`
 	Title                string `rjson:"title.runs[0].text"`
@@ -47,7 +58,7 @@ type PlaylistInfo struct {
 	UpdateStatus string `rjson:"header.playlistHeaderRenderer.byline[2].playlistBylineRenderer.text.runs[0].text"` // example: "Updated today"
 
 	ContinuationToken string          `rjson:"contents.twoColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[0].itemSectionRenderer.contents[0].playlistVideoListRenderer.contents[-].continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
-	Videos            []PlaylistVideo `rjson:"contents.twoColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[0].itemSectionRenderer.contents[0].playlistVideoListRenderer.contents.[].playlistVideoRenderer"`
+	Videos            []PlaylistVideo `rjson:"contents.twoColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents[0].itemSectionRenderer.contents[0].playlistVideoListRenderer.contents[].playlistVideoRenderer"`
 }
 
 type PlaylistContinueOutput struct {
