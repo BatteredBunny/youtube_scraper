@@ -18,7 +18,7 @@ import (
 )
 
 type VideoScraper struct {
-	VideoInfo             FullVideo // Initial info about the video, contains info by default
+	VideoInfo             FullVideo // Initial info about the video
 	InitialSidebarEntries []SidebarEntry
 
 	mediaUrlJs string
