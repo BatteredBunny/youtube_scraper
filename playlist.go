@@ -86,9 +86,7 @@ func (p *PlaylistScraper) NextPage() (videos []PlaylistVideo, err error) {
 		p.state.Views = strings.TrimSuffix(p.state.Views, " views")
 
 		p.playlistContinueToken = p.state.ContinuationToken
-		c := continueInput{Continuation: p.playlistContinueToken}.FillGenericInfo()
-		c.Context.Client.Gl = ""
-		p.playlistContinueInput, err = c.Construct()
+		p.playlistContinueInput, err = continueInput{Continuation: p.playlistContinueToken}.FillGenericInfo().Construct()
 		if err != nil {
 			return
 		}
@@ -123,9 +121,7 @@ func (p *PlaylistScraper) NextPage() (videos []PlaylistVideo, err error) {
 
 		if out.ContinuationToken != "" {
 			p.playlistContinueToken = out.ContinuationToken
-			c := continueInput{Continuation: p.playlistContinueToken}.FillGenericInfo()
-			c.Context.Client.Gl = ""
-			p.playlistContinueInput, err = c.Construct()
+			p.playlistContinueInput, err = continueInput{Continuation: p.playlistContinueToken}.FillGenericInfo().Construct()
 			if err != nil {
 				return
 			}

@@ -43,7 +43,7 @@ func extractInitialData(url string) (rawJson string, err error) {
 
 func (ci continueInput) FillGenericInfo() continueInput {
 	ci.Context.Client.Hl = "en"
-	ci.Context.Client.Gl = "UK"
+	ci.Context.Client.Gl = "GB"
 	ci.Context.Client.ClientName = "WEB"
 	ci.Context.Client.ClientVersion = "2.20230714.00.00"
 

@@ -225,6 +225,7 @@ func genericChannelInitial(initialComplete *bool, url string, channel *Channel, 
 	*initialComplete = true
 	return
 }
+
 func genericChannelPage(channel *Channel, continueInputJson *[]byte, outputGeneric func(rawJson []byte) (rawToken string, rawVideos []channelInitialVideo, err error)) (videos []Video, err error) {
 	var resp *http.Response
 	resp, err = http.Post("https://www.youtube.com/youtubei/v1/browse", "application/json", bytes.NewReader(*continueInputJson))
