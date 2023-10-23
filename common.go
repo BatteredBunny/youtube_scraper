@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func ExtractInitialData(url string) (rawjson string, err error) {
+func extractInitialData(url string) (rawjson string, err error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		return

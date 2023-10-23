@@ -105,7 +105,7 @@ func (c *ChannelVideosScraper) GetChannelInfo() (available bool, channel Channel
 	return
 }
 
-type ChannelInitialOutput struct {
+type channelInitialOutput struct {
 	Subscribers     string `rjson:"header.c4TabbedHeaderRenderer.subscriberCountText.simpleText"`
 	ChannelID       string `rjson:"metadata.channelMetadataRenderer.externalId"`
 	NewChannelID    string `rjson:"header.c4TabbedHeaderRenderer.channelHandleText.runs[0].text"`
@@ -127,7 +127,7 @@ type ChannelInitialOutput struct {
 
 func (c *ChannelVideosScraper) runInitial() (videos []Video, err error) {
 	var rawJson string
-	rawJson, err = ExtractInitialData(c.url)
+	rawJson, err = extractInitialData(c.url)
 	if err != nil {
 		return
 	}
@@ -136,7 +136,7 @@ func (c *ChannelVideosScraper) runInitial() (videos []Video, err error) {
 		os.WriteFile("channel_initial.json", []byte(rawJson), 0777)
 	}
 
-	var output ChannelInitialOutput
+	var output channelInitialOutput
 	if err = rjson.Unmarshal([]byte(rawJson), &output); err != nil {
 		if errors.Unwrap(err) == rjson.ErrCantFindField {
 			if Debug {

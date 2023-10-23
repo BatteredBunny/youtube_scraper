@@ -41,7 +41,7 @@ type FullVideo struct {
 	ChannelSubscribers string `json:"ChannelSubscribers"`
 }
 
-type VideoInitialOutput struct {
+type videoInitialOutput struct {
 	Title              string `rjson:"playerOverlays.playerOverlayRenderer.videoDetails.playerOverlayVideoDetailsRenderer.title.simpleText"`
 	Description        string `rjson:"contents.twoColumnWatchNextResults.results.results.contents[1].videoSecondaryInfoRenderer.attributedDescription.content"`
 	Views              string `rjson:"playerOverlays.playerOverlayRenderer.videoDetails.playerOverlayVideoDetailsRenderer.subtitle.runs[2].text"`
@@ -65,7 +65,7 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 	v.url = fmt.Sprintf("https://www.youtube.com/watch?v=%s&hl=en", id)
 
 	var rawJson string
-	rawJson, err = ExtractInitialData(v.url)
+	rawJson, err = extractInitialData(v.url)
 	if err != nil {
 		return
 	}
@@ -75,7 +75,7 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 		os.WriteFile("video_initial.json", []byte(rawJson), 0777)
 	}
 
-	var output VideoInitialOutput
+	var output videoInitialOutput
 	if err = rjson.Unmarshal([]byte(rawJson), &output); err != nil {
 		if errors.Unwrap(err) == rjson.ErrCantFindField {
 			if Debug {

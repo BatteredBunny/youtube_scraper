@@ -63,7 +63,7 @@ type homeInitialOutput struct {
 
 func (h *HomeVideosScraper) runInitial() (videos []Video, err error) {
 	var rawjson string
-	rawjson, err = ExtractInitialData(h.url)
+	rawjson, err = extractInitialData(h.url)
 	if err != nil {
 		return
 	}

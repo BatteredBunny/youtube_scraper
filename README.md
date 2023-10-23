@@ -38,3 +38,9 @@ func main() {
 	}
 }
 ```
+
+# Features
+- Fetch channel videos
+- Fetch home page videos
+- Fetch video metadata
+- Fetch comments and subcomments
