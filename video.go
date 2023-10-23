@@ -22,6 +22,7 @@ type VideoScraper struct {
 	commentsTopContinueInputJson []byte
 }
 
+// FullVideo has the full metadata unlike Video which is fetched from video lists
 type FullVideo struct {
 	VideoID       string `json:"VideoID"`
 	Title         string `json:"Title"`
