@@ -25,6 +25,18 @@ type SidebarEntry struct {
 	Entry any
 }
 
+func (s SidebarEntry) IsVideo() bool {
+	return s.Type == SidebarEntryTypeVideo
+}
+
+func (s SidebarEntry) IsPlaylist() bool {
+	return s.Type == SidebarEntryTypePlaylist
+}
+
+func (s SidebarEntry) IsRadio() bool {
+	return s.Type == SidebarEntryTypeRadio
+}
+
 type SidebarVideo struct {
 	VideoID         string
 	Title           string
