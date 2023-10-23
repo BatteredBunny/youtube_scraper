@@ -1,8 +1,10 @@
 package scraper
 
 import (
-	"github.com/ayes-web/testingassert"
+	"net/url"
 	"testing"
+
+	assert "github.com/ayes-web/testingassert"
 )
 
 func TestLttVideo(t *testing.T) {
@@ -73,4 +75,63 @@ func TestLttLivestream(t *testing.T) {
 	assert.NotEquals(video.Description, "", "description is empty")
 	assert.NotEquals(video.Date, "")
 	assert.Assert(video.IsLive, "fail: not live")
+}
+
+// TODO: make it actually check if the media url is valid
+func TestMediaUrl(t *testing.T) {
+	assert.TestState = t
+	v, err := NewVideoScraper("UXqq0ZvbOnk")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var output ExtractMediaOutput
+	output, err = v.ExtractMediaUrl()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var bestMediaFormat MediaFormat
+	for _, format := range output.AdaptiveFormats {
+		if format.Bitrate > bestMediaFormat.Bitrate {
+			bestMediaFormat = format
+		}
+	}
+
+	assert.NotEquals(bestMediaFormat.Url, "")
+}
+
+func TestMediaUrlDrm(t *testing.T) {
+	assert.TestState = t
+	v, err := NewVideoScraper("rYEDA3JcQqw")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	output, err := v.ExtractMediaUrl()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var bestMediaFormat MediaFormat
+	for _, format := range output.AdaptiveFormats {
+		if format.Bitrate > bestMediaFormat.Bitrate {
+			bestMediaFormat = format
+		}
+	}
+
+	if bestMediaFormat.Url == "" && bestMediaFormat.SignatureCipher != "" {
+		q, err := url.ParseQuery(bestMediaFormat.SignatureCipher)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		bestMediaFormat.Url, err = v.decryptSignature(q)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	t.Fatal("TODO")
+	assert.NotEquals(bestMediaFormat.Url, "")
 }

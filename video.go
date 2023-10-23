@@ -1,18 +1,25 @@
 package scraper
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
-	"github.com/ayes-web/rjson"
+	"io"
 	"log"
+	"net/http"
+	"net/url"
+	"regexp"
 	"strings"
+
+	"github.com/ayes-web/rjson"
 )
 
 type VideoScraper struct {
 	VideoInfo             FullVideo
 	InitialSidebarEntries []SidebarEntry
 
-	url string
+	mediaUrlJs string
+	url        string
 
 	commentsNewestPassedInitial     bool
 	commentsNewestToken             string
@@ -68,11 +75,28 @@ type videoInitialOutput struct {
 	SidebarToken   string            `rjson:"contents.twoColumnWatchNextResults.secondaryResults.secondaryResults.results[-].continuationItemRenderer.button.buttonRenderer.command.continuationCommand.token"`
 }
 
+var mediaUrlJsRegex = regexp.MustCompile(`src=\"(\/s\/player\/[^\\/]+\/player_ias[^\\/]+\/en_US\/base.js)\"`)
+
 func NewVideoScraper(id string) (v VideoScraper, err error) {
 	v.url = fmt.Sprintf("https://www.youtube.com/watch?v=%s&hl=en", id)
 
+	resp, err := http.Get(v.url)
+	if err != nil {
+		return
+	}
+
+	var body []byte
+	body, err = io.ReadAll(resp.Body)
+	if err != nil {
+		return
+	}
+
+	debugFileOutput([]byte(body), "video_initial.html")
+
+	v.mediaUrlJs = string(mediaUrlJsRegex.FindSubmatch(body)[1])
+
 	var rawJson string
-	rawJson, err = extractInitialData(v.url)
+	rawJson, err = extractInitialDataBytes(body)
 	if err != nil {
 		return
 	}
@@ -142,5 +166,166 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 		ChannelSubscribers: strings.TrimSuffix(output.ChannelSubscribers, " subscribers"),
 	}
 
+	return
+}
+
+type MediaFormat struct {
+	Bitrate int `rjson:"bitrate"`
+	Width   int `rjson:"width"`
+	Height  int `rjson:"height"`
+
+	Url             string `rjson:"url"`
+	MimeType        string `rjson:"mimeType"` // e.g "audio/mp4; codecs=\"mp4a.40.2\"" or "video/mp4; codecs=\"av01.0.00M.08\""
+	QualityLabel    string `rjson:"qualityLabel"`
+	SignatureCipher string `rjson:"signatureCipher"` // DRM
+
+	// Videos can have dubs
+	AudioTrack struct {
+		DisplayName    string `rjson:"displayName"`
+		AudioIsDefault bool   `rjson:"audioIsDefault"`
+	} `rjson:"audioTrack"`
+}
+
+type ExtractMediaOutput struct {
+	Formats []MediaFormat `rjson:"streamingData.formats"`
+
+	// Best quality formats are here, but the video and audio tracks will be separate
+	AdaptiveFormats []MediaFormat `rjson:"streamingData.adaptiveFormats"`
+}
+
+func ExtractMediaUrl(id string) (output ExtractMediaOutput, err error) {
+	var bs []byte
+	bs, err = continueInput{VideoID: id}.FillGenericInfo().Construct()
+	if err != nil {
+		return
+	}
+
+	var resp *http.Response
+	// using the web key
+	resp, err = http.Post("https://youtubei.googleapis.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8", "application/json", bytes.NewReader(bs))
+	if err != nil {
+		return
+	}
+
+	var body []byte
+	body, err = io.ReadAll(resp.Body)
+	if err != nil {
+		return
+	}
+
+	err = rjson.Unmarshal(body, &output)
+
+	return
+}
+func (v *VideoScraper) ExtractMediaUrl() (output ExtractMediaOutput, err error) {
+	return ExtractMediaUrl(v.VideoInfo.VideoID)
+}
+
+var funcNameRegex = regexp.MustCompile("\n([^=]+)=function\\(\\w\\){\\w=\\w\\.split\\(\"\"\\);[^. ]+\\.[^( ]+")
+
+type operationFunc = func(a string, b int) string
+
+type decryptFunc struct {
+	f operationFunc
+	i int
+}
+
+// TODO: fix & cleanup
+func FetchDecryptFunction(mediaUrlJs string) (decryptFunctions []decryptFunc, err error) {
+	var resp *http.Response
+	resp, err = http.Get("https://www.youtube.com" + mediaUrlJs)
+	if err != nil {
+		return
+	}
+
+	var body []byte
+	body, err = io.ReadAll(resp.Body)
+	if err != nil {
+		return
+	}
+
+	name := funcNameRegex.FindSubmatch(body)[1]
+
+	var re *regexp.Regexp
+	re, err = regexp.Compile(fmt.Sprintf("\n%s=function\\(\\w\\){([^}]+)}", name))
+	if err != nil {
+		return
+	}
+
+	rawfuncbody := string(re.FindSubmatch(body)[1])
+
+	t := strings.Split(rawfuncbody, ";")
+	funcbody := t[1 : len(t)-1]
+
+	var_name := funcbody[0][0:2]
+	re, err = regexp.Compile(fmt.Sprintf("var %s={([a-zA-Z:;%s(){},\\n0-9. =\\[\\]]*)};", var_name, "%"))
+	if err != nil {
+		return
+	}
+
+	var_body := string(re.FindSubmatch(body)[1])
+	operations := make(map[string]operationFunc)
+	for _, row := range strings.Split(var_body, "},") {
+		cleanedRow := strings.Trim(row, "\n")
+		op_name := regexp.MustCompile("^[^:]+").FindString(cleanedRow)
+		op_body := regexp.MustCompile("\\{[^}]+").FindString(cleanedRow)
+
+		switch op_body {
+		case "{a.reverse()":
+			operations[op_name] = func(a string, b int) string {
+				return reverse(a)
+			}
+		case "{a.splice(0,b)":
+			operations[op_name] = func(a string, b int) string {
+				return splice(a, b)
+			}
+		default:
+			operations[op_name] = func(a string, b int) string {
+				raw := []rune(a)
+				c := raw[0]
+				raw[0] = raw[b%len(a)]
+				raw[b%len(a)] = c
+				return string(raw)
+			}
+		}
+	}
+
+	for _, f := range funcbody {
+		f = strings.TrimPrefix(f, var_name)
+		opName := strings.TrimPrefix(regexp.MustCompile("[^\\(]+").FindString(f), ".")
+
+		var i int
+		if _, err = fmt.Sscanf(regexp.MustCompile("\\(\\w,([\\d]+)\\)").FindString(f), "(a,%d)", &i); err != nil {
+			return
+		}
+
+		decryptFunctions = append(decryptFunctions, decryptFunc{
+			f: operations[opName],
+			i: i,
+		})
+	}
+
+	return
+}
+
+func (v *VideoScraper) decryptSignature(query url.Values) (out string, err error) {
+	sp := query.Get("sp")
+	sig := query.Get("s")
+	rawurl := query.Get("url")
+
+	var funcs []decryptFunc
+	funcs, err = FetchDecryptFunction(v.mediaUrlJs)
+	if err != nil {
+		return
+	}
+
+	for _, f := range funcs {
+		sig = f.f(sig, f.i)
+	}
+
+	u := make(url.Values)
+	u.Set(sp, sig)
+
+	out = rawurl + "&" + u.Encode()
 	return
 }

@@ -56,6 +56,7 @@ type continueInput struct {
 		//	} `json:"params"`
 		//} `json:"adSignalsInfo"`
 	} `json:"context"`
+	VideoID             string `json:"videoId"`
 	Continuation        string `json:"continuation"`
 	BrowseId            string `json:"browseId,omitempty"`
 	InlineSettingStatus string `json:"inlineSettingStatus,omitempty"`

@@ -1,20 +1,17 @@
 package scraper
 
 import (
+	"bytes"
 	"encoding/json"
 	"github.com/PuerkitoBio/goquery"
+	"io"
 	"net/http"
 	"strings"
 )
 
-func extractInitialData(url string) (rawJson string, err error) {
-	resp, err := http.Get(url)
-	if err != nil {
-		return
-	}
-
+func extractInitialDataBytes(body []byte) (rawJson string, err error) {
 	var doc *goquery.Document
-	doc, err = goquery.NewDocumentFromReader(resp.Body)
+	doc, err = goquery.NewDocumentFromReader(bytes.NewReader(body))
 	if err != nil {
 		return
 	}
@@ -28,11 +25,26 @@ func extractInitialData(url string) (rawJson string, err error) {
 	return
 }
 
+func extractInitialData(url string) (rawJson string, err error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return
+	}
+
+	var body []byte
+	body, err = io.ReadAll(resp.Body)
+	if err != nil {
+		return
+	}
+
+	return extractInitialDataBytes(body)
+}
+
 func (ci continueInput) FillGenericInfo() continueInput {
 	ci.Context.Client.Hl = "en"
 	ci.Context.Client.Gl = "UK"
 	ci.Context.Client.ClientName = "WEB"
-	ci.Context.Client.ClientVersion = "2.20230706.00.00"
+	ci.Context.Client.ClientVersion = "2.20230714.00.00"
 
 	return ci
 }
