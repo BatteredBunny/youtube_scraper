@@ -14,9 +14,9 @@ import (
 type sidebarEntryType = int
 
 const (
-	SidebarEntryVideo sidebarEntryType = iota
-	SidebarEntryPlaylist
-	SidebarEntryRadio
+	SidebarEntryTypeVideo sidebarEntryType = iota
+	SidebarEntryTypePlaylist
+	SidebarEntryTypeRadio
 )
 
 type SidebarEntry struct {
@@ -150,7 +150,7 @@ func (sidebarEntry rawSidebarEntry) ToSidebarEntry() (s SidebarEntry, err error)
 		}
 
 		s = SidebarEntry{
-			Type: SidebarEntryVideo,
+			Type: SidebarEntryTypeVideo,
 			Entry: SidebarVideo{
 				VideoID:         sidebarEntry.Video.VideoID,
 				Title:           sidebarEntry.Video.Title,
@@ -172,13 +172,13 @@ func (sidebarEntry rawSidebarEntry) ToSidebarEntry() (s SidebarEntry, err error)
 		}
 	} else if sidebarEntry.Playlist.PlaylistID != "" {
 		var videosAmount int
-		videosAmount, err = strconv.Atoi(fixUnit(strings.ReplaceAll(sidebarEntry.Playlist.VideosAmount, ",", "")))
+		videosAmount, err = strconv.Atoi(FixUnit(strings.ReplaceAll(sidebarEntry.Playlist.VideosAmount, ",", "")))
 		if err != nil {
 			return
 		}
 
 		s = SidebarEntry{
-			Type: SidebarEntryPlaylist,
+			Type: SidebarEntryTypePlaylist,
 			Entry: SidebarPlaylist{
 				PlaylistID:       sidebarEntry.Playlist.PlaylistID,
 				Title:            sidebarEntry.Playlist.Title,
@@ -192,13 +192,13 @@ func (sidebarEntry rawSidebarEntry) ToSidebarEntry() (s SidebarEntry, err error)
 		}
 	} else if sidebarEntry.Radio.RadioPlaylistID != "" {
 		var videosAmount int
-		videosAmount, err = strconv.Atoi(fixUnit(strings.ReplaceAll(sidebarEntry.Playlist.VideosAmount, ",", "")))
+		videosAmount, err = strconv.Atoi(FixUnit(strings.ReplaceAll(sidebarEntry.Playlist.VideosAmount, ",", "")))
 		if err != nil {
 			return
 		}
 
 		s = SidebarEntry{
-			Type: SidebarEntryRadio,
+			Type: SidebarEntryTypeRadio,
 			Entry: SidebarRadio{
 				PlaylistID:       sidebarEntry.Radio.RadioPlaylistID,
 				Title:            sidebarEntry.Radio.Title,
@@ -232,14 +232,14 @@ func (v *VideoScraper) NextSidebarVideosPage() (sidebarEntries []SidebarEntry, e
 		return
 	}
 
-	debugFileOutput(body, "sidebar_videos_%s.json", v.sidebarContinueInput.Continuation)
+	DebugFileOutput(body, "sidebar_videos_%s.json", v.sidebarContinueInput.Continuation)
 
 	var output sidebarOutput
 	if err = rjson.Unmarshal(body, &output); err != nil {
 		return
 	}
 
-	v.sidebarContinueInput = continueInput{Continuation: output.ContinueToken}.FillGenericInfo()
+	v.sidebarContinueInput = ContinueInput{Continuation: output.ContinueToken}.FillGenericInfo()
 	v.sidebarContinueInputJson, err = v.sidebarContinueInput.Construct()
 	if err != nil {
 		return

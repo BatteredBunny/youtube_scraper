@@ -30,13 +30,13 @@ func TestSidebarVideos(t *testing.T) {
 func HandleSidebarEntries(t *testing.T, sidebarEntries []scraper.SidebarEntry) {
 	for _, sidebarEntry := range sidebarEntries {
 		switch sidebarEntry.Type {
-		case scraper.SidebarEntryVideo:
+		case scraper.SidebarEntryTypeVideo:
 			sidebarVideo := sidebarEntry.Entry.(scraper.SidebarVideo)
 			t.Log("video:", sidebarVideo)
-		case scraper.SidebarEntryPlaylist:
+		case scraper.SidebarEntryTypePlaylist:
 			sidebarPlaylist := sidebarEntry.Entry.(scraper.SidebarPlaylist)
 			t.Log("playlist:", sidebarPlaylist)
-		case scraper.SidebarEntryRadio:
+		case scraper.SidebarEntryTypeRadio:
 			sidebarRadio := sidebarEntry.Entry.(scraper.SidebarRadio)
 			t.Log("radio:", sidebarRadio)
 		}

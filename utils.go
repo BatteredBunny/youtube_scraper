@@ -25,7 +25,7 @@ func GetVideoThumbnail(id string) string {
 }
 
 // humanize library doesnt seem to understand that "10K" and "10k" are the same thing
-func fixUnit(s string) string {
+func FixUnit(s string) string {
 	if strings.HasSuffix(s, "K") {
 		s = strings.TrimSuffix(s, "K") + "k"
 	}

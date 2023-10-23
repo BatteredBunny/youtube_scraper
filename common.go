@@ -3,13 +3,14 @@ package scraper
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/PuerkitoBio/goquery"
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
-func extractInitialDataBytes(body []byte) (rawJson string, err error) {
+func ExtractInitialDataBytes(body []byte) (rawJson string, err error) {
 	var doc *goquery.Document
 	doc, err = goquery.NewDocumentFromReader(bytes.NewReader(body))
 	if err != nil {
@@ -25,7 +26,8 @@ func extractInitialDataBytes(body []byte) (rawJson string, err error) {
 	return
 }
 
-func extractInitialData(url string) (rawJson string, err error) {
+// Helper function that scraper json from html page
+func ExtractInitialData(url string) (rawJson string, err error) {
 	var resp *http.Response
 	resp, err = http.Get(url)
 	if err != nil {
@@ -38,10 +40,10 @@ func extractInitialData(url string) (rawJson string, err error) {
 		return
 	}
 
-	return extractInitialDataBytes(body)
+	return ExtractInitialDataBytes(body)
 }
 
-func (ci continueInput) FillGenericInfo() continueInput {
+func (ci ContinueInput) FillGenericInfo() ContinueInput {
 	ci.Context.Client.Hl = "en"
 	ci.Context.Client.Gl = "GB"
 	ci.Context.Client.ClientName = "WEB"
@@ -50,6 +52,6 @@ func (ci continueInput) FillGenericInfo() continueInput {
 	return ci
 }
 
-func (ci continueInput) Construct() ([]byte, error) {
+func (ci ContinueInput) Construct() ([]byte, error) {
 	return json.Marshal(ci)
 }

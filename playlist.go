@@ -65,7 +65,7 @@ type playlistVideoRenderer struct {
 }
 
 func (p *playlistVideoRenderer) ToPlaylistVideo() (v PlaylistVideo, err error) {
-	views, unit, err := humanize.ParseSI(fixUnit(strings.TrimSuffix(p.Views, " views")))
+	views, unit, err := humanize.ParseSI(FixUnit(strings.TrimSuffix(p.Views, " views")))
 	if err != nil {
 		return
 	} else if unit != "" {
@@ -125,12 +125,12 @@ func (p *rawPlaylistInfo) ToPlaylistInfo() (o PlaylistInfo, err error) {
 		}
 	}
 
-	views, err := strconv.Atoi(fixUnit(strings.ReplaceAll(p.Views, ",", "")))
+	views, err := strconv.Atoi(FixUnit(strings.ReplaceAll(p.Views, ",", "")))
 	if err != nil {
 		return
 	}
 
-	videosCount, err := strconv.Atoi(fixUnit(strings.ReplaceAll(p.VideosCount, ",", "")))
+	videosCount, err := strconv.Atoi(FixUnit(strings.ReplaceAll(p.VideosCount, ",", "")))
 	if err != nil {
 		return
 	}
@@ -168,12 +168,12 @@ func (p *PlaylistScraper) GetPlaylistInfo() (info PlaylistInfo, err error) {
 func (p *PlaylistScraper) NextPage() (videos []PlaylistVideo, err error) {
 	if !p.initialDone {
 		var rawJson string
-		rawJson, err = extractInitialData(p.url)
+		rawJson, err = ExtractInitialData(p.url)
 		if err != nil {
 			return
 		}
 
-		debugFileOutput([]byte(rawJson), "initial_playlist_output.json")
+		DebugFileOutput([]byte(rawJson), "initial_playlist_output.json")
 
 		if err = rjson.Unmarshal([]byte(rawJson), &p.state); err != nil {
 			return
@@ -184,7 +184,7 @@ func (p *PlaylistScraper) NextPage() (videos []PlaylistVideo, err error) {
 		p.state.Views = strings.TrimSuffix(p.state.Views, " views")
 
 		p.playlistContinueToken = p.state.ContinuationToken
-		p.playlistContinueInput, err = continueInput{Continuation: p.playlistContinueToken}.FillGenericInfo().Construct()
+		p.playlistContinueInput, err = ContinueInput{Continuation: p.playlistContinueToken}.FillGenericInfo().Construct()
 		if err != nil {
 			return
 		}
@@ -218,7 +218,7 @@ func (p *PlaylistScraper) NextPage() (videos []PlaylistVideo, err error) {
 			return
 		}
 
-		debugFileOutput(body, "initial_playlist_%s.json", p.playlistContinueToken)
+		DebugFileOutput(body, "initial_playlist_%s.json", p.playlistContinueToken)
 
 		var out PlaylistContinueOutput
 		if err = rjson.Unmarshal(body, &out); err != nil {
@@ -227,7 +227,7 @@ func (p *PlaylistScraper) NextPage() (videos []PlaylistVideo, err error) {
 
 		if out.ContinuationToken != "" {
 			p.playlistContinueToken = out.ContinuationToken
-			p.playlistContinueInput, err = continueInput{Continuation: p.playlistContinueToken}.FillGenericInfo().Construct()
+			p.playlistContinueInput, err = ContinueInput{Continuation: p.playlistContinueToken}.FillGenericInfo().Construct()
 			if err != nil {
 				return
 			}

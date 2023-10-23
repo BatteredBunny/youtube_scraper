@@ -25,14 +25,14 @@ type VideoScraper struct {
 	url        string
 
 	commentsNewestPassedInitial     bool
-	commentsNewestContinueInput     continueInput
+	commentsNewestContinueInput     ContinueInput
 	commentsNewestContinueInputJson []byte
 
 	commentsTopPassedInitial     bool
-	commentsTopContinueInput     continueInput
+	commentsTopContinueInput     ContinueInput
 	commentsTopContinueInputJson []byte
 
-	sidebarContinueInput     continueInput
+	sidebarContinueInput     ContinueInput
 	sidebarContinueInputJson []byte
 }
 
@@ -115,12 +115,12 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 	v.mediaUrlJs = string(mediaUrlJsRegex.FindSubmatch(body)[1])
 
 	var rawJson string
-	rawJson, err = extractInitialDataBytes(body)
+	rawJson, err = ExtractInitialDataBytes(body)
 	if err != nil {
 		return
 	}
 
-	debugFileOutput([]byte(rawJson), "video_initial.json")
+	DebugFileOutput([]byte(rawJson), "video_initial.json")
 
 	var output videoInitialOutput
 	if err = rjson.Unmarshal([]byte(rawJson), &output); err != nil {
@@ -155,13 +155,13 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 	for _, token := range output.Tokens {
 		switch token.Title {
 		case "Top comments":
-			v.commentsTopContinueInput = continueInput{Continuation: token.Token}.FillGenericInfo()
+			v.commentsTopContinueInput = ContinueInput{Continuation: token.Token}.FillGenericInfo()
 			v.commentsTopContinueInputJson, err = v.commentsNewestContinueInput.Construct()
 			if err != nil {
 				return
 			}
 		case "Newest first":
-			v.commentsNewestContinueInput = continueInput{Continuation: token.Token}.FillGenericInfo()
+			v.commentsNewestContinueInput = ContinueInput{Continuation: token.Token}.FillGenericInfo()
 			v.commentsNewestContinueInputJson, err = v.commentsTopContinueInput.Construct()
 			if err != nil {
 				return
@@ -169,7 +169,7 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 		}
 	}
 
-	v.sidebarContinueInput = continueInput{Continuation: output.SidebarToken}.FillGenericInfo()
+	v.sidebarContinueInput = ContinueInput{Continuation: output.SidebarToken}.FillGenericInfo()
 	v.sidebarContinueInputJson, err = v.sidebarContinueInput.Construct()
 	if err != nil {
 		return
@@ -200,7 +200,7 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 		return
 	}
 
-	likes, unit, err := humanize.ParseSI(fixUnit(output.Likes))
+	likes, unit, err := humanize.ParseSI(FixUnit(output.Likes))
 	if err != nil {
 		return
 	} else if unit != "" {
@@ -209,7 +209,7 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 
 	var comments float64
 	if output.CommentsCount != "" {
-		comments, unit, err = humanize.ParseSI(fixUnit(output.CommentsCount))
+		comments, unit, err = humanize.ParseSI(FixUnit(output.CommentsCount))
 		if err != nil {
 			return
 		} else if unit != "" {
@@ -217,7 +217,7 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 		}
 	}
 
-	channelSubscribers, unit, err := humanize.ParseSI(fixUnit(strings.TrimSuffix(output.ChannelSubscribers, " subscribers")))
+	channelSubscribers, unit, err := humanize.ParseSI(FixUnit(strings.TrimSuffix(output.ChannelSubscribers, " subscribers")))
 	if err != nil {
 		return
 	} else if unit != "" {
@@ -294,7 +294,7 @@ type ExtractMediaOutput struct {
 
 func ExtractMediaFormats(id string) (output ExtractMediaOutput, err error) {
 	var bs []byte
-	bs, err = continueInput{VideoID: id}.FillGenericInfo().Construct()
+	bs, err = ContinueInput{VideoID: id}.FillGenericInfo().Construct()
 	if err != nil {
 		return
 	}

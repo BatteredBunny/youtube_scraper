@@ -17,14 +17,14 @@ type HomeVideosScraper struct {
 	url string
 
 	initialComplete   bool
-	continueInput     continueInput
+	continueInput     ContinueInput
 	continueInputJson []byte
 }
 
 func HomeVideosScraperFromExport(export HomeVideosExport) (h HomeVideosScraper, err error) {
 	h.initialComplete = export.InitialComplete
 	h.url = "https://www.youtube.com/?hl=en"
-	h.continueInput = continueInput{
+	h.continueInput = ContinueInput{
 		BrowseId:            "FEwhat_to_watch",
 		InlineSettingStatus: "INLINE_SETTING_STATUS_ON",
 		Continuation:        export.ContinueToken,
@@ -91,7 +91,7 @@ func (video homeVideo) ToVideo() (v Video, err error) {
 
 	var views int
 	if video.Views != "" && video.Views != "No views" {
-		views, err = strconv.Atoi(fixUnit(strings.ReplaceAll(strings.TrimSuffix(video.Views, " views"), ",", "")))
+		views, err = strconv.Atoi(FixUnit(strings.ReplaceAll(strings.TrimSuffix(video.Views, " views"), ",", "")))
 		if err != nil {
 			return
 		}
@@ -99,7 +99,7 @@ func (video homeVideo) ToVideo() (v Video, err error) {
 
 	var viewers int
 	if video.Viewers != "" {
-		viewers, err = strconv.Atoi(fixUnit(strings.ReplaceAll(strings.TrimSuffix(video.Viewers, " watching"), ",", "")))
+		viewers, err = strconv.Atoi(FixUnit(strings.ReplaceAll(strings.TrimSuffix(video.Viewers, " watching"), ",", "")))
 		if err != nil {
 			return
 		}
@@ -149,12 +149,12 @@ type homeInitialOutput struct {
 
 func (h *HomeVideosScraper) runInitial() (videos []Video, err error) {
 	var rawJson string
-	rawJson, err = extractInitialData(h.url)
+	rawJson, err = ExtractInitialData(h.url)
 	if err != nil {
 		return
 	}
 
-	debugFileOutput([]byte(rawJson), "home_initial.json")
+	DebugFileOutput([]byte(rawJson), "home_initial.json")
 
 	var output homeInitialOutput
 	if err = rjson.Unmarshal([]byte(rawJson), &output); err != nil {
@@ -167,7 +167,7 @@ func (h *HomeVideosScraper) runInitial() (videos []Video, err error) {
 		return
 	}
 
-	h.continueInput = continueInput{
+	h.continueInput = ContinueInput{
 		BrowseId:            "FEwhat_to_watch",
 		InlineSettingStatus: "INLINE_SETTING_STATUS_ON",
 		Continuation:        output.ContinuationToken,
@@ -227,7 +227,7 @@ func (h *HomeVideosScraper) NextPage() (videos []Video, err error) {
 			return
 		}
 
-		debugFileOutput(body, "home_videos_%s.json", h.continueInput.Continuation)
+		DebugFileOutput(body, "home_videos_%s.json", h.continueInput.Continuation)
 
 		var output homeContinueOutput
 		if err = rjson.Unmarshal(body, &output); err != nil {

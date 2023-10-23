@@ -2,21 +2,21 @@ package examples
 
 import (
 	"encoding/json"
+	"log"
 	"testing"
 
 	scraper "git.catnip.ee/miisu/youtube_scraper"
+	search "git.catnip.ee/miisu/youtube_scraper/search"
 )
 
 func TestSearch(t *testing.T) {
-	searchScraper, err := scraper.NewSearchScraper("livestream")
+	searchScraper, err := search.NewSearchScraper("test", "")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	searchScraper.NextPage()
-
-	var results []scraper.SearchVideo
-	for i := 0; i <= 3; i++ {
+	var results []search.SearchEntry
+	for i := 0; i <= 2; i++ {
 		results, err = searchScraper.NextPage()
 		if err != nil {
 			t.Fatal(err)
@@ -24,12 +24,49 @@ func TestSearch(t *testing.T) {
 			break
 		}
 
-		for _, result := range results {
-			bs, err := json.MarshalIndent(result, "", "	")
-			if err != nil {
-				t.Fatal(err)
-			}
-			t.Log(string(bs))
+		HandleSearchEntries(t, results)
+	}
+}
+
+func TestSearchFilters(t *testing.T) {
+	scraper.Debug = true
+	searchScraper, err := search.NewSearchScraper("test", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	searchScraper.NextPage()
+
+	bs, _ := json.Marshal(searchScraper.GetFilters())
+	log.Println(string(bs))
+	searchScraper.ApplyFilter("Channel")
+
+	var results []search.SearchEntry
+	for i := 0; i <= 2; i++ {
+		results, err = searchScraper.NextPage()
+		if err != nil {
+			t.Fatal(err)
+		} else if len(results) == 0 {
+			break
+		}
+
+		HandleSearchEntries(t, results)
+	}
+}
+
+func HandleSearchEntries(t *testing.T, searchEntries []search.SearchEntry) {
+	for _, searchEntry := range searchEntries {
+		switch searchEntry.Type {
+		case search.SearchEntryTypeVideo:
+			searchVideo := searchEntry.Entry.(search.SearchVideo)
+			t.Log("video:", searchVideo)
+		case search.SearchEntryTypeChannel:
+			searchChannel := searchEntry.Entry.(search.SearchChannel)
+			t.Log("channel:", searchChannel)
+		case search.SearchEntryTypePlaylist:
+			searchPlaylist := searchEntry.Entry.(search.SearchPlaylist)
+			t.Log("playlist:", searchPlaylist)
 		}
 	}
+	t.Log("-------------")
 }
