@@ -130,6 +130,7 @@ func TestUnlistedVideo(t *testing.T) {
 	assert.Equals(video.Username, "Coffeezilla")
 	assert.Equals(video.NewChannelID, "@Coffeezilla")
 	assert.Equals(video.Title, "Pewdiepie's Last Hope - Save a Swede By Going AFK")
+	assert.Equals(video.Date, "Apr 27, 2019")
 	assert.Assert(video.ChannelIsVerified, "channel should be verified")
 	assert.Assert(!video.ChannelIsVerifiedArtist, "channel shouldnt be an artist")
 	assert.Assert(video.IsUnlisted, "should be unlisted")
