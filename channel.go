@@ -30,8 +30,8 @@ type Channel struct {
 }
 
 type Video struct {
-	VideoID string `json:"VideoID"`
-	Title   string `json:"Title"`
+	VideoID string
+	Title   string
 
 	// Will be empty if its livestream
 	// example value 7:03
@@ -72,14 +72,15 @@ type Video struct {
 	*/
 	Date string `json:"Date,omitempty"`
 
-	Username     string `json:"Username"`
-	ChannelID    string `json:"ChannelID"`
-	NewChannelID string `json:"NewChannelID"` // @username
+	Username      string
+	ChannelID     string
+	NewChannelID  string // @username
+	ChannelAvatar string
 
-	IsLive                 bool `json:"IsLive"`
-	WasLive                bool `json:"WasLive"`
-	AuthorIsVerified       bool `json:"AuthorIsVerified"`
-	AuthorIsVerifiedArtist bool `json:"AuthorIsVerifiedArtist"`
+	IsLive                 bool
+	WasLive                bool
+	AuthorIsVerified       bool
+	AuthorIsVerifiedArtist bool
 }
 
 type ChannelScraper struct {

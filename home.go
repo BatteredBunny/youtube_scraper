@@ -60,21 +60,22 @@ func (h *HomeVideosScraper) Export() HomeVideosExport {
 }
 
 // home has a modified version of videoRenderer with few additional lines of info, maybe best to merge them fully?
-type homeInitialOutputVideo struct {
-	VideoID         string `rjson:"videoId"`
-	Title           string `rjson:"title.runs[0].text"`
-	Length          string `rjson:"lengthText.simpleText"`
-	Views           string `rjson:"viewCountText.simpleText"`
-	Viewers         string `rjson:"viewCountText.runs[0].text"`
-	Date            string `rjson:"publishedTimeText.simpleText"`
-	Username        string `rjson:"longBylineText.runs[0].text"`
-	ChannelID       string `rjson:"longBylineText.runs[0].navigationEndpoint.browseEndpoint.browseId"`
-	RawNewChannelID string `rjson:"longBylineText.runs[0].navigationEndpoint.browseEndpoint.canonicalBaseUrl"` // comes with "/" at start, make sure to trim it
+type homeVideo struct {
+	VideoID string `rjson:"videoId"`
+	Title   string `rjson:"title.runs[0].text"`
+	Length  string `rjson:"lengthText.simpleText"`
+	Views   string `rjson:"viewCountText.simpleText"`
+	Viewers string `rjson:"viewCountText.runs[0].text"`
+	Date    string `rjson:"publishedTimeText.simpleText"`
 
-	OwnerBadges []string `rjson:"ownerBadges[].metadataBadgeRenderer.tooltip"`
+	ChannelAvatar   string   `rjson:"channelThumbnailSupportedRenderers.channelThumbnailWithLinkRenderer.thumbnail.thumbnails[0].url"`
+	Username        string   `rjson:"longBylineText.runs[0].text"`
+	ChannelID       string   `rjson:"longBylineText.runs[0].navigationEndpoint.browseEndpoint.browseId"`
+	RawNewChannelID string   `rjson:"longBylineText.runs[0].navigationEndpoint.browseEndpoint.canonicalBaseUrl"` // comes with "/" at start, make sure to trim it
+	OwnerBadges     []string `rjson:"ownerBadges[].metadataBadgeRenderer.tooltip"`
 }
 
-func (video homeInitialOutputVideo) ToVideo() (v Video, err error) {
+func (video homeVideo) ToVideo() (v Video, err error) {
 	var authorIsVerified bool
 	var authorIsVerifiedArtist bool
 	for _, ownerBadge := range video.OwnerBadges {
@@ -118,6 +119,7 @@ func (video homeInitialOutputVideo) ToVideo() (v Video, err error) {
 		WasLive:                wasLive,
 		AuthorIsVerified:       authorIsVerified,
 		AuthorIsVerifiedArtist: authorIsVerifiedArtist,
+		ChannelAvatar:          video.ChannelAvatar,
 	}
 
 	return
@@ -128,7 +130,7 @@ type homeInitialOutput struct {
 	ContinuationToken string `rjson:"contents.twoColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.richGridRenderer.contents[-].continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
 
 	Videos []struct {
-		Video homeInitialOutputVideo `rjson:"richItemRenderer.content.videoRenderer"`
+		Video homeVideo `rjson:"richItemRenderer.content.videoRenderer"`
 
 		ShelfName  string `rjson:"richSectionRenderer.content.richShelfRenderer.title.runs[0].text"`
 		ShelfItems []struct {
@@ -139,7 +141,7 @@ type homeInitialOutput struct {
 				//Possibly parse length from here, example: Daily dose of cute animals for you ❤️v29 Chill Lofi - 1 minute - play VideoInfo
 				//Length string `rjson:"accessibility.accessibilityData.label"`
 			} `rjson:"richItemRenderer.content.reelItemRenderer"`
-			Video homeInitialOutputVideo `rjson:"richItemRenderer.content.videoRenderer"`
+			Video homeVideo `rjson:"richItemRenderer.content.videoRenderer"`
 		} `rjson:"richSectionRenderer.content.richShelfRenderer.contents"`
 	} `rjson:"contents.twoColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.richGridRenderer.contents"`
 }
@@ -202,8 +204,8 @@ func (h *HomeVideosScraper) runInitial() (videos []Video, err error) {
 }
 
 type homeContinueOutput struct {
-	Videos        []homeInitialOutputVideo `rjson:"onResponseReceivedActions[0].appendContinuationItemsAction.continuationItems[].richItemRenderer.content.videoRenderer"`
-	ContinueToken string                   `rjson:"onResponseReceivedActions[0].appendContinuationItemsAction.continuationItems[-]continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
+	Videos        []homeVideo `rjson:"onResponseReceivedActions[0].appendContinuationItemsAction.continuationItems[].richItemRenderer.content.videoRenderer"`
+	ContinueToken string      `rjson:"onResponseReceivedActions[0].appendContinuationItemsAction.continuationItems[-]continuationItemRenderer.continuationEndpoint.continuationCommand.token"`
 }
 
 func (h *HomeVideosScraper) NextPage() (videos []Video, err error) {
