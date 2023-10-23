@@ -2,6 +2,13 @@
 
 Youtube metadata scraping library for golang
 
+## Features
+- Fetch channel videos
+- Fetch home page videos
+- Fetch video metadata
+- Fetch comments and subcomments
+
+## Example
 ```go
 package main
 
@@ -38,9 +45,3 @@ func main() {
 	}
 }
 ```
-
-# Features
-- Fetch channel videos
-- Fetch home page videos
-- Fetch video metadata
-- Fetch comments and subcomments
