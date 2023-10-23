@@ -61,20 +61,15 @@ func (rawVideo searchVideoRenderer) ToVideo() (video SearchVideo, err error) {
 	}
 
 	var viewers int
-	if strings.HasSuffix(rawVideo.Viewers, " watching") {
-		viewers, err = strconv.Atoi(strings.TrimSuffix(rawVideo.Viewers, " watching"))
-		if err != nil {
-			return
-		}
-	} else if rawVideo.Viewers != "" {
-		viewers, err = strconv.Atoi(strings.ReplaceAll(rawVideo.Viewers, ",", ""))
+	if rawVideo.Viewers != "" {
+		viewers, err = strconv.Atoi(strings.ReplaceAll(strings.TrimSuffix(rawVideo.Viewers, " watching"), ",", ""))
 		if err != nil {
 			return
 		}
 	}
 
 	var views int
-	if rawVideo.Views != "" {
+	if rawVideo.Views != "" && rawVideo.Views != "No views" {
 		views, err = strconv.Atoi(strings.ReplaceAll(strings.TrimSuffix(rawVideo.Views, " views"), ",", ""))
 		if err != nil {
 			return
