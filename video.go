@@ -75,7 +75,7 @@ type videoInitialOutput struct {
 	SidebarToken   string            `rjson:"contents.twoColumnWatchNextResults.secondaryResults.secondaryResults.results[-].continuationItemRenderer.button.buttonRenderer.command.continuationCommand.token"`
 }
 
-var mediaUrlJsRegex = regexp.MustCompile(`src=\"(\/s\/player\/[^\\/]+\/player_ias[^\\/]+\/en_US\/base.js)\"`)
+var mediaUrlJsRegex = regexp.MustCompile(`src="(/s/player/[^\\/]+/player_ias[^\\/]+/en_US/base.js)"`)
 
 func NewVideoScraper(id string) (v VideoScraper, err error) {
 	v.url = fmt.Sprintf("https://www.youtube.com/watch?v=%s&hl=en", id)
@@ -186,6 +186,25 @@ type MediaFormat struct {
 	} `rjson:"audioTrack"`
 }
 
+// GetMediaUrl is a generic function to get the media url, doesnt matter if it has DRM or not
+func (m *MediaFormat) GetMediaUrl(v *VideoScraper) (out string, err error) {
+	if m.Url == "" && m.SignatureCipher != "" {
+		var q url.Values
+		q, err = url.ParseQuery(m.SignatureCipher)
+		if err != nil {
+			return
+		}
+
+		m.Url, err = v.decryptSignature(q)
+		if err != nil {
+			return
+		}
+	}
+
+	out = m.Url
+	return
+}
+
 type ExtractMediaOutput struct {
 	Formats []MediaFormat `rjson:"streamingData.formats"`
 
@@ -252,35 +271,35 @@ func FetchDecryptFunction(mediaUrlJs string) (decryptFunctions []decryptFunc, er
 		return
 	}
 
-	rawfuncbody := string(re.FindSubmatch(body)[1])
+	rawFuncBody := string(re.FindSubmatch(body)[1])
 
-	t := strings.Split(rawfuncbody, ";")
-	funcbody := t[1 : len(t)-1]
+	t := strings.Split(rawFuncBody, ";")
+	funcBody := t[1 : len(t)-1]
 
-	var_name := funcbody[0][0:2]
-	re, err = regexp.Compile(fmt.Sprintf("var %s={([a-zA-Z:;%s(){},\\n0-9. =\\[\\]]*)};", var_name, "%"))
+	varName := funcBody[0][0:2]
+	re, err = regexp.Compile(fmt.Sprintf("var %s={([a-zA-Z:;%s(){},\\n0-9. =\\[\\]]*)};", varName, "%"))
 	if err != nil {
 		return
 	}
 
-	var_body := string(re.FindSubmatch(body)[1])
+	varBody := string(re.FindSubmatch(body)[1])
 	operations := make(map[string]operationFunc)
-	for _, row := range strings.Split(var_body, "},") {
+	for _, row := range strings.Split(varBody, "},") {
 		cleanedRow := strings.Trim(row, "\n")
-		op_name := regexp.MustCompile("^[^:]+").FindString(cleanedRow)
-		op_body := regexp.MustCompile("\\{[^}]+").FindString(cleanedRow)
+		opName := regexp.MustCompile("^[^:]+").FindString(cleanedRow)
+		opBody := regexp.MustCompile("\\{[^}]+").FindString(cleanedRow)
 
-		switch op_body {
+		switch opBody {
 		case "{a.reverse()":
-			operations[op_name] = func(a string, b int) string {
+			operations[opName] = func(a string, b int) string {
 				return reverse(a)
 			}
 		case "{a.splice(0,b)":
-			operations[op_name] = func(a string, b int) string {
+			operations[opName] = func(a string, b int) string {
 				return splice(a, b)
 			}
 		default:
-			operations[op_name] = func(a string, b int) string {
+			operations[opName] = func(a string, b int) string {
 				raw := []rune(a)
 				c := raw[0]
 				raw[0] = raw[b%len(a)]
@@ -290,8 +309,8 @@ func FetchDecryptFunction(mediaUrlJs string) (decryptFunctions []decryptFunc, er
 		}
 	}
 
-	for _, f := range funcbody {
-		f = strings.TrimPrefix(f, var_name)
+	for _, f := range funcBody {
+		f = strings.TrimPrefix(f, varName)
 		opName := strings.TrimPrefix(regexp.MustCompile("[^\\(]+").FindString(f), ".")
 
 		var i int
@@ -309,9 +328,8 @@ func FetchDecryptFunction(mediaUrlJs string) (decryptFunctions []decryptFunc, er
 }
 
 func (v *VideoScraper) decryptSignature(query url.Values) (out string, err error) {
-	sp := query.Get("sp")
-	sig := query.Get("s")
-	rawurl := query.Get("url")
+	rawUrl := query.Get("url")
+	signatureUrlName := query.Get("sp")
 
 	var funcs []decryptFunc
 	funcs, err = FetchDecryptFunction(v.mediaUrlJs)
@@ -319,13 +337,20 @@ func (v *VideoScraper) decryptSignature(query url.Values) (out string, err error
 		return
 	}
 
+	sig := query.Get("s")
 	for _, f := range funcs {
 		sig = f.f(sig, f.i)
 	}
 
-	u := make(url.Values)
-	u.Set(sp, sig)
+	var parsedUrl *url.URL
+	parsedUrl, err = url.Parse(rawUrl)
+	if err != nil {
+		return
+	}
+	q := parsedUrl.Query()
+	q.Set(signatureUrlName, sig)
+	parsedUrl.RawQuery = q.Encode()
 
-	out = rawurl + "&" + u.Encode()
+	out = parsedUrl.String()
 	return
 }

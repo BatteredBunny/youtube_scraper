@@ -1,7 +1,6 @@
 package scraper
 
 import (
-	"net/url"
 	"testing"
 
 	assert "github.com/ayes-web/testingassert"
@@ -98,7 +97,13 @@ func TestMediaUrl(t *testing.T) {
 		}
 	}
 
-	assert.NotEquals(bestMediaFormat.Url, "")
+	var out string
+	out, err = bestMediaFormat.GetMediaUrl(&v)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.NotEquals(out, "")
 }
 
 func TestMediaUrlDrm(t *testing.T) {
@@ -120,18 +125,12 @@ func TestMediaUrlDrm(t *testing.T) {
 		}
 	}
 
-	if bestMediaFormat.Url == "" && bestMediaFormat.SignatureCipher != "" {
-		q, err := url.ParseQuery(bestMediaFormat.SignatureCipher)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		bestMediaFormat.Url, err = v.decryptSignature(q)
-		if err != nil {
-			t.Fatal(err)
-		}
+	var out string
+	out, err = bestMediaFormat.GetMediaUrl(&v)
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	t.Fatal("TODO")
-	assert.NotEquals(bestMediaFormat.Url, "")
+	t.Fatal("TODO:", out)
+	assert.NotEquals(out, "")
 }
