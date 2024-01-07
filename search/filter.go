@@ -1,6 +1,6 @@
 package search
 
-import scraper "github.com/ayes-web/youtube_scraper"
+import scraper "github.com/BatteredBunny/youtube_scraper"
 
 // returns chip filter options that can be applied, chips will become available after first page
 func (s *SearchScraper) GetChipFilters() (filters []string) {

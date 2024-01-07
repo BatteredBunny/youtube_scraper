@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ayes-web/rjson"
+	"github.com/BatteredBunny/rjson"
 	"github.com/dustin/go-humanize"
 )
 

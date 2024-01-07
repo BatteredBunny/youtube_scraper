@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	scraper "github.com/ayes-web/youtube_scraper"
+	scraper "github.com/BatteredBunny/youtube_scraper"
 )
 
 func TestJustChannelInfo(t *testing.T) {

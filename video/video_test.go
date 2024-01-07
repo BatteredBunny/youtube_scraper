@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	assert "github.com/ayes-web/testingassert"
+	assert "github.com/BatteredBunny/testingassert"
 )
 
 func TestLttVideo(t *testing.T) {

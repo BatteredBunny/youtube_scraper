@@ -3,7 +3,7 @@ package examples
 import (
 	"testing"
 
-	scraper "github.com/ayes-web/youtube_scraper/video"
+	scraper "github.com/BatteredBunny/youtube_scraper/video"
 )
 
 func TestSidebarVideos(t *testing.T) {

@@ -1,6 +1,6 @@
 package search
 
-import scraper "github.com/ayes-web/youtube_scraper"
+import scraper "github.com/BatteredBunny/youtube_scraper"
 
 type searchVideoRenderer struct {
 	VideoID       string                 `rjson:"videoId"`

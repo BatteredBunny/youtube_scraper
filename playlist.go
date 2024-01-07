@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ayes-web/rjson"
+	"github.com/BatteredBunny/rjson"
 )
 
 type PlaylistScraper struct {

@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ayes-web/rjson"
-	scraper "github.com/ayes-web/youtube_scraper"
+	"github.com/BatteredBunny/rjson"
+	scraper "github.com/BatteredBunny/youtube_scraper"
 )
 
 type sidebarEntryType = int

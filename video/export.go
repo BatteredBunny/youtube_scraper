@@ -1,6 +1,6 @@
 package video
 
-import scraper "github.com/ayes-web/youtube_scraper"
+import scraper "github.com/BatteredBunny/youtube_scraper"
 
 type VideoScraperExport struct {
 	MediaUrlJs string
