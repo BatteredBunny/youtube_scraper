@@ -107,6 +107,21 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 		return
 	}
 
+	if output.Title == "" {
+		err = errors.New("title not found")
+		return
+	}
+
+	if output.Likes == "" {
+		err = errors.New("likes not found")
+		return
+	}
+
+	// if output.CommentsCount == "" {
+	// 	err = errors.New("comments count not found")
+	// 	return
+	// }
+
 	var channelIsVerified, channelIsVerifiedArtist bool
 	for _, badge := range output.OwnerBadges {
 		switch badge {
@@ -189,15 +204,16 @@ func NewVideoScraper(id string) (v VideoScraper, err error) {
 		log.Printf("WARNING: possibly wrong number for likes: %f%s\n", likes, unit)
 	}
 
+	// TODO: fix
 	var comments float64
-	if output.CommentsCount != "" {
-		comments, unit, err = humanize.ParseSI(scraper.FixUnit(output.CommentsCount))
-		if err != nil {
-			return
-		} else if unit != "" {
-			log.Printf("WARNING: possibly wrong number for comments count: %f%s\n", comments, unit)
-		}
-	}
+	// if output.CommentsCount != "" {
+	// 	comments, unit, err = humanize.ParseSI(scraper.FixUnit(output.CommentsCount))
+	// 	if err != nil {
+	// 		return
+	// 	} else if unit != "" {
+	// 		log.Printf("WARNING: possibly wrong number for comments count: %f%s\n", comments, unit)
+	// 	}
+	// }
 
 	channelSubscribers, unit, err := humanize.ParseSI(scraper.FixUnit(strings.TrimSuffix(output.ChannelSubscribers, " subscribers")))
 	if err != nil {
