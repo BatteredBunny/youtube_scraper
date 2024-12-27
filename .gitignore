@@ -1,2 +1,4 @@
 .idea
 *.json
+.DS_Store
+.direnv
