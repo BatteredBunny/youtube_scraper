@@ -1,3 +1,6 @@
+> [!WARNING]
+> In a pretty broken state right now due to not being updated in a year.
+
 # youtube_scraper
 
 Youtube metadata scraping library for golang
